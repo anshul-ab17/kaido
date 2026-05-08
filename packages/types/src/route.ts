@@ -25,7 +25,7 @@ export interface RouteResult {
   priceImpact: number;
   totalFee: number;
   confidenceScore: number;
-  aiExplanation: string;
+  aiExplanation?: string;
   estimatedSavings: number;
   executionTimeMs: number;
 }

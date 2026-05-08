@@ -21,4 +21,6 @@ export interface EventMarket {
   price: number;
   size: number;
   walletAddress: string;
+  /** Unix timestamp in milliseconds */
+  createdAt: number;
 }

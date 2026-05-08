@@ -13,8 +13,10 @@ export interface WsTick {
   timestamp: number;
 }
 
-export interface WsMessage {
-  type: 'subscribe' | 'unsubscribe' | 'ping' | 'pong' | 'data' | 'error';
-  payload?: WsSubscription | WsTick;
-  error?: string;
-}
+export type WsMessage =
+  | { type: 'subscribe'; payload: WsSubscription }
+  | { type: 'unsubscribe'; payload: WsSubscription }
+  | { type: 'ping' }
+  | { type: 'pong' }
+  | { type: 'data'; payload: WsTick }
+  | { type: 'error'; error: string };
