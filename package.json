@@ -1,5 +1,5 @@
 {
-  "name": "with-tailwind",
+  "name": "kaido-monorepo",
   "private": true,
   "scripts": {
     "build": "turbo run build",
