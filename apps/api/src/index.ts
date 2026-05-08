@@ -6,13 +6,13 @@ import jwt from '@fastify/jwt';
 import websocket from '@fastify/websocket';
 import { config } from './config.js';
 import authPlugin from './plugins/auth.js';
-import redisPlugin from './plugins/redis.js';
+import cachePlugin from './plugins/cache.js';
 import wsPlugin from './plugins/websocket.js';
 import { authRoutes } from './routes/auth.js';
 import { marketRoutes } from './routes/markets.js';
 import { tradeRoutes } from './routes/trade.js';
 import { portfolioRoutes } from './routes/portfolio.js';
-import { prisma } from './lib/prisma.js';
+import { prisma } from '@repo/db';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -31,7 +31,7 @@ await app.register(cors, {
 await app.register(rateLimit, { max: 100, timeWindow: '1 minute' });
 await app.register(jwt, { secret: config.JWT_SECRET });
 await app.register(websocket);
-await app.register(redisPlugin);
+await app.register(cachePlugin);
 await app.register(authPlugin);
 await app.register(wsPlugin);
 

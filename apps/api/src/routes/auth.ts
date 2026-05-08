@@ -2,7 +2,7 @@ import type { FastifyPluginAsync } from 'fastify';
 import nacl from 'tweetnacl';
 import bs58 from 'bs58';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma.js';
+import { prisma } from '@repo/db';
 
 const NONCE_TTL = 300;
 
@@ -18,13 +18,13 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     const { walletAddress } = challengeSchema.parse(request.body);
     const nonce = crypto.randomUUID();
     const message = `Sign in to Kaido\nWallet: ${walletAddress}\nNonce: ${nonce}`;
-    await fastify.redis.setex(`nonce:${walletAddress}`, NONCE_TTL, nonce);
+    await fastify.cache.setex(`nonce:${walletAddress}`, NONCE_TTL, nonce);
     return reply.send({ nonce, message, expiresAt: Date.now() + NONCE_TTL * 1000 });
   });
 
   fastify.post('/verify', async (request, reply) => {
     const { walletAddress, signature, nonce } = verifySchema.parse(request.body);
-    const storedNonce = await fastify.redis.get(`nonce:${walletAddress}`);
+    const storedNonce = await fastify.cache.get(`nonce:${walletAddress}`);
     if (!storedNonce || storedNonce !== nonce) {
       return reply.code(401).send({ error: 'Invalid or expired nonce' });
     }
@@ -34,7 +34,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     const pubBytes = bs58.decode(walletAddress);
     const valid = nacl.sign.detached.verify(msgBytes, sigBytes, pubBytes);
     if (!valid) return reply.code(401).send({ error: 'Invalid signature' });
-    await fastify.redis.del(`nonce:${walletAddress}`);
+    await fastify.cache.del(`nonce:${walletAddress}`);
     const identity = await prisma.authIdentity.upsert({
       where: { type_address: { type: 'wallet', address: walletAddress } },
       create: { type: 'wallet', provider: 'phantom', address: walletAddress, user: { create: {} } },

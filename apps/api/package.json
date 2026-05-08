@@ -9,9 +9,9 @@
     "start": "node dist/index.js",
     "lint": "tsc --noEmit",
     "check-types": "tsc --noEmit",
-    "db:generate": "prisma generate",
-    "db:push": "prisma db push",
-    "db:migrate": "prisma migrate dev",
+    "db:generate": "pnpm --filter @repo/db db:generate",
+    "db:push": "pnpm --filter @repo/db db:push",
+    "db:migrate": "pnpm --filter @repo/db db:migrate",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -20,20 +20,19 @@
     "@fastify/jwt": "^8.0.1",
     "@fastify/rate-limit": "^9.1.0",
     "@fastify/websocket": "^10.0.1",
+    "@repo/cache": "workspace:*",
+    "@repo/db": "workspace:*",
     "@repo/types": "workspace:*",
-    "@prisma/client": "^6.1.0",
     "@solana/web3.js": "^1.98.0",
     "bs58": "^6.0.0",
     "fastify": "^5.1.0",
     "fastify-plugin": "^5.0.1",
-    "ioredis": "^5.4.1",
     "tweetnacl": "^1.0.3",
     "zod": "^3.24.1"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^20",
-    "prisma": "^6.1.0",
     "tsx": "^4.19.2",
     "typescript": "5.9.2"
   }
