@@ -37,3 +37,14 @@ dist/
 
 # rust
 target/
+Cargo.lock
+
+# secrets
+.env
+
+# typescript
+*.tsbuildinfo
+
+# editors
+.vscode/
+.idea/
