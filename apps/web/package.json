@@ -8,13 +8,21 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint --max-warnings 0",
-    "check-types": "next typegen && tsc --noEmit"
+    "check-types": "next typegen && tsc --noEmit",
+    "clean": "rm -rf .next"
   },
   "dependencies": {
+    "@repo/types": "workspace:*",
     "@repo/ui": "workspace:*",
+    "framer-motion": "^12.0.0",
+    "lightweight-charts": "^5.0.0",
+    "lucide-react": "^0.511.0",
     "next": "16.2.0",
     "react": "^19.2.0",
-    "react-dom": "^19.1.0"
+    "react-dom": "^19.1.0",
+    "zustand": "^5.0.0",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.0.0"
   },
   "devDependencies": {
     "@next/eslint-plugin-next": "^16.2.0",

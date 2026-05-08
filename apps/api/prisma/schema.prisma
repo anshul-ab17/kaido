@@ -1,0 +1,85 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  lastLogin     DateTime?
+  referralCode  String?        @unique
+  riskProfile   String?
+  aiPreferences Json?
+  settings      Json?
+  featureFlags  Json?
+  identities    AuthIdentity[]
+  orders        Order[]
+  trades        Trade[]
+
+  @@map("users")
+}
+
+model AuthIdentity {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  type      String
+  provider  String
+  address   String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([type, address])
+  @@map("auth_identities")
+}
+
+model Market {
+  id         String  @id @default(cuid())
+  symbol     String  @unique
+  baseToken  String
+  quoteToken String
+  type       String  @default("spot")
+  active     Boolean @default(true)
+  orders     Order[]
+  trades     Trade[]
+
+  @@map("markets")
+}
+
+model Order {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  userId    String
+  marketId  String
+  side      String
+  type      String
+  price     Float?
+  size      Float
+  filled    Float    @default(0)
+  status    String   @default("open")
+  user      User     @relation(fields: [userId], references: [id])
+  market    Market   @relation(fields: [marketId], references: [id])
+
+  @@map("orders")
+}
+
+model Trade {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  userId    String
+  marketId  String
+  side      String
+  price     Float
+  size      Float
+  fee       Float
+  signature String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  market    Market   @relation(fields: [marketId], references: [id])
+
+  @@map("trades")
+}
