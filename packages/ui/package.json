@@ -1,27 +1,42 @@
 {
   "name": "@repo/ui",
-  "version": "0.0.0",
-  "sideEffects": [
-    "**/*.css"
-  ],
+  "version": "0.1.0",
+  "private": true,
+  "sideEffects": ["**/*.css"],
   "files": [
     "dist"
   ],
   "exports": {
     "./styles.css": "./dist/index.css",
-    "./*": "./dist/*.js"
+    ".": "./dist/index.js",
+    "./button": "./dist/components/button.js",
+    "./card": "./dist/components/card.js",
+    "./input": "./dist/components/input.js",
+    "./badge": "./dist/components/badge.js",
+    "./dialog": "./dist/components/dialog.js",
+    "./spinner": "./dist/components/spinner.js",
+    "./utils": "./dist/lib/utils.js"
   },
-  "license": "MIT",
   "scripts": {
+    "build": "pnpm build:styles && pnpm build:components",
     "build:styles": "tailwindcss -i ./src/styles.css -o ./dist/index.css",
     "build:components": "tsc",
-    "check-types": "tsc --noEmit",
+    "dev": "pnpm dev:styles & pnpm dev:components",
     "dev:styles": "tailwindcss -i ./src/styles.css -o ./dist/index.css --watch",
     "dev:components": "tsc --watch",
-    "lint": "eslint src --max-warnings 0"
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src --max-warnings 0",
+    "clean": "rm -rf dist"
   },
   "peerDependencies": {
-    "react": "^19"
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "dependencies": {
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.0.0",
+    "class-variance-authority": "^0.7.1",
+    "lucide-react": "^0.511.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
@@ -29,6 +44,7 @@
     "@repo/typescript-config": "workspace:*",
     "@tailwindcss/cli": "^4.1.5",
     "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.1",
     "eslint": "^9.39.1",
     "tailwindcss": "^4.1.5",
     "typescript": "5.9.2"

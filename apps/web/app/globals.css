@@ -1,5 +1,5 @@
 @import "tailwindcss";
-@import "@repo/tailwind-config/shared-styles.css";
+@import "@repo/tailwind-config";
 
 @layer base {
   :root {
