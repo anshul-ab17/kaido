@@ -12,10 +12,11 @@ export class SolanaConnection {
 
   constructor(config: ConnectionConfig) {
     this.rpcUrl = config.rpcUrl;
-    this.connection = new Connection(config.rpcUrl, {
+    const connConfig: { commitment: Commitment; wsEndpoint?: string } = {
       commitment: config.commitment ?? 'confirmed',
-      wsEndpoint: config.wsUrl,
-    });
+    };
+    if (config.wsUrl !== undefined) connConfig.wsEndpoint = config.wsUrl;
+    this.connection = new Connection(config.rpcUrl, connConfig);
   }
 
   getConnection(): Connection {
