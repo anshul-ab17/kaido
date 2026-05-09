@@ -20,5 +20,5 @@ It's a hybrid dex exchange built on Solana.
 
 ## Getting Started
 
-1. Install dependencies: `npm install`
-2. Run development environment: `npm run dev`
+1. Install dependencies: `pnpm install`
+2. Run development environment: `pnpm run dev`

@@ -54,13 +54,26 @@ const wsPlugin: FastifyPluginAsync = async (fastify) => {
     socket.on('close', () => clients.delete(socket));
   });
 
-  // Mock tick producer — publishes to stream every 500ms
+  // Mock tick producer — publishes tickers every 500ms
+  const TICKERS = [
+    { symbol: 'SOL-PERP', basePrice: 145 },
+    { symbol: 'BTC-PERP', basePrice: 67_420 },
+    { symbol: 'ETH-PERP', basePrice: 3_512 },
+  ];
+
   const tickInterval = setInterval(() => {
     const now = Date.now();
-    void producer.publish(TICK_STREAM, {
-      data: JSON.stringify({ channel: 'ticker', symbol: 'SOL-PERP', price: String(145 + (Math.random() - 0.5) * 2), timestamp: String(now) }),
-      timestamp: String(now),
-    });
+    for (const { symbol, basePrice } of TICKERS) {
+      void producer.publish(TICK_STREAM, {
+        data: JSON.stringify({
+          channel: 'ticker',
+          symbol,
+          price: String(basePrice + (Math.random() - 0.5) * basePrice * 0.002),
+          timestamp: String(now),
+        }),
+        timestamp: String(now),
+      });
+    }
   }, 500);
 
   fastify.addHook('onClose', async () => {

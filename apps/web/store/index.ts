@@ -7,6 +7,8 @@ interface WalletState {
   balance: number;
 }
 
+type WsStatus = 'disconnected' | 'connecting' | 'connected';
+
 interface KaidoStore {
   // Market
   activeMarket: string;
@@ -18,6 +20,9 @@ interface KaidoStore {
   // UI
   moreMenuOpen: boolean;
   toggleMoreMenu: () => void;
+  // WebSocket
+  wsStatus: WsStatus;
+  setWsStatus: (status: WsStatus) => void;
   // Wallet
   wallet: WalletState;
   setConnected: (publicKey: string) => void;
@@ -34,6 +39,8 @@ export const useKaidoStore = create<KaidoStore>((set) => ({
     set((state) => ({ tickers: { ...state.tickers, [ticker.symbol]: ticker } })),
   moreMenuOpen: false,
   toggleMoreMenu: () => set((state) => ({ moreMenuOpen: !state.moreMenuOpen })),
+  wsStatus: 'disconnected',
+  setWsStatus: (status) => set({ wsStatus: status }),
   wallet: { connected: false, publicKey: null, balance: 0 },
   setConnected: (publicKey) =>
     set({ wallet: { connected: true, publicKey, balance: 0 } }),

@@ -12,6 +12,7 @@ import { authRoutes } from './routes/auth.js';
 import { marketRoutes } from './routes/markets.js';
 import { tradeRoutes } from './routes/trade.js';
 import { portfolioRoutes } from './routes/portfolio.js';
+import { eventRoutes } from './routes/events.js';
 import { prisma } from '@repo/db';
 
 declare module 'fastify' {
@@ -41,6 +42,7 @@ await app.register(authRoutes, { prefix: '/auth' });
 await app.register(marketRoutes);
 await app.register(tradeRoutes);
 await app.register(portfolioRoutes);
+await app.register(eventRoutes);
 
 app.get('/health', async () => ({ status: 'ok', timestamp: Date.now() }));
 
