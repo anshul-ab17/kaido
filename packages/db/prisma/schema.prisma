@@ -83,3 +83,71 @@ model Trade {
 
   @@map("trades")
 }
+
+model Event {
+  id              String          @id
+  title           String
+  description     String
+  category        String
+  status          String          @default("open")
+  resolutionDate  BigInt
+  qYes            Float           @default(0)
+  qNo             Float           @default(0)
+  volume          Float           @default(0)
+  liquidity       Float           @default(1000)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  positions       EventPosition[]
+  activity        EventActivity[]
+
+  @@map("events")
+}
+
+model EventPosition {
+  id        String   @id @default(cuid())
+  eventId   String
+  wallet    String
+  yesShares Float    @default(0)
+  noShares  Float    @default(0)
+  yesCost   Float    @default(0)
+  noCost    Float    @default(0)
+  updatedAt DateTime @updatedAt
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, wallet])
+  @@map("event_positions")
+}
+
+model EventActivity {
+  id        String   @id @default(cuid())
+  eventId   String
+  wallet    String
+  side      String
+  amount    Float
+  shares    Float
+  price     Float
+  createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("event_activity")
+}
+
+model TpSlOrder {
+  id          String   @id
+  wallet      String
+  market      String
+  side        String
+  size        Float
+  entryPrice  Float
+  tpPrice     Float?
+  slPrice     Float?
+  leverage    Float    @default(1)
+  status      String   @default("active")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([wallet])
+  @@index([status])
+  @@map("tpsl_orders")
+}
