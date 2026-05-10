@@ -30,7 +30,7 @@ const SEED_PRICE: Record<string, number> = {
   'BNB-PERP': 580, 'ARB-PERP': 1.1, 'JUP-PERP': 0.9,
 };
 
-function generateMockCandles(symbol: string, tf: Timeframe, count = 400): OHLCVBar[] {
+function generateMockCandles(symbol: string, tf: Timeframe, count = 500): OHLCVBar[] {
   const sec   = TF_INTERVAL[tf];
   const seed  = SEED_PRICE[symbol] ?? 100;
   const now   = Math.floor(Date.now() / 1000);
@@ -121,6 +121,7 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
   private rafId:        number | null = null;
   private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private bars:         OHLCVBar[] = [];
+  private initialLoad = true;
 
   override componentDidMount() {
     this.rafId = requestAnimationFrame(() => {
@@ -143,6 +144,7 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
     const { tf, chartType, indicators } = this.state;
 
     if (pp.symbol !== symbol || ps.tf !== tf) {
+      this.initialLoad = true;
       this.setState({ loading: true, error: false, liveBar: null });
       void this.fetchCandles();
       return;
@@ -342,9 +344,15 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
 
     this.bars = bars;
     this.applyType(bars);
-    // Show last 150 candles with a small right margin — keeps latest bar visible
-    const len = bars.length;
-    this.chart?.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - 150), to: len + 3 });
+
+    if (this.initialLoad) {
+      // First load: show last 150 candles so latest bar is at right edge
+      const len = bars.length;
+      this.chart?.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - 150), to: len + 3 });
+      this.initialLoad = false;
+    }
+    // On periodic refreshes: preserve the user's current scroll position
+
     this.setState({ liveBar: bars.at(-1)!, loading: false, error: false });
   }
 
