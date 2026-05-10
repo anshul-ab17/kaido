@@ -15,18 +15,7 @@ type ChartType  = 'candle' | 'area' | 'bar';
 const VISIBLE_TFS: Timeframe[] = ['5m', '1H', '1D'];
 const MORE_TFS:   Timeframe[] = ['1m', '15m', '4H', '1W'];
 
-const BINANCE_URL = 'https://api.binance.com/api/v3/klines';
-const API_URL     = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:4000';
-
-const BINANCE_INTERVAL: Record<Timeframe, string> = {
-  '1m': '1m', '5m': '5m', '15m': '15m',
-  '1H': '1h', '4H': '4h', '1D': '1d', '1W': '1w',
-};
-
-const BINANCE_SYMBOL: Record<string, string> = {
-  'SOL-PERP': 'SOLUSDT', 'BTC-PERP': 'BTCUSDT', 'ETH-PERP': 'ETHUSDT',
-  'BNB-PERP': 'BNBUSDT', 'ARB-PERP': 'ARBUSDT', 'JUP-PERP': 'JUPUSDT',
-};
+const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:4000';
 
 const TF_INTERVAL: Record<Timeframe, number> = {
   '1m': 60, '5m': 300, '15m': 900,
@@ -275,27 +264,12 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
   private async fetchCandles() {
     const { symbol } = this.props;
     const { tf } = this.state;
-    const binSym = BINANCE_SYMBOL[symbol];
     try {
-      let bars: OHLCVBar[];
-      if (binSym) {
-        const res = await fetch(`${BINANCE_URL}?symbol=${binSym}&interval=${BINANCE_INTERVAL[tf]}&limit=${TF_LIMIT[tf]}`);
-        if (!res.ok) throw new Error(`Binance ${res.status}`);
-        const raw = (await res.json()) as [number, string, string, string, string, string][];
-        bars = raw.map((k) => ({
-          time:   Math.floor(k[0] / 1000),
-          open:   parseFloat(k[1]),
-          high:   parseFloat(k[2]),
-          low:    parseFloat(k[3]),
-          close:  parseFloat(k[4]),
-          volume: parseFloat(k[5]),
-        }));
-      } else {
-        const res = await fetch(`${API_URL}/markets/${symbol}/candles?timeframe=${tf}`);
-        if (!res.ok) throw new Error(`API ${res.status}`);
-        const data = (await res.json()) as { candles: { time: number; open: number; high: number; low: number; close: number }[] };
-        bars = data.candles.map((c) => ({ ...c, volume: 0 }));
-      }
+      // Always fetch via API backend — Binance blocks browser-direct requests with CORS
+      const res = await fetch(`${API_URL}/markets/${symbol}/candles?timeframe=${tf}`);
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = (await res.json()) as { candles: { time: number; open: number; high: number; low: number; close: number; volume?: number }[] };
+      const bars: OHLCVBar[] = data.candles.map((c) => ({ ...c, volume: c.volume ?? 0 }));
       if (!bars.length) { this.setState({ loading: false, error: false }); return; }
       this.bars = bars;
       this.applyType(bars);
@@ -303,19 +277,7 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
       this.chart?.timeScale().scrollToRealtime();
       this.setState({ liveBar: bars.at(-1)!, loading: false, error: false });
     } catch {
-      try {
-        const res = await fetch(`${API_URL}/markets/${symbol}/candles?timeframe=${tf}`);
-        if (!res.ok) throw new Error('fallback');
-        const data = (await res.json()) as { candles: { time: number; open: number; high: number; low: number; close: number }[] };
-        const bars = data.candles.map((c) => ({ ...c, volume: 0 }));
-        this.bars = bars;
-        this.applyType(bars);
-        this.chart?.timeScale().fitContent();
-        this.chart?.timeScale().scrollToRealtime();
-        this.setState({ liveBar: bars.at(-1)!, loading: false, error: false });
-      } catch {
-        this.setState({ loading: false, error: true });
-      }
+      this.setState({ loading: false, error: true });
     }
   }
 

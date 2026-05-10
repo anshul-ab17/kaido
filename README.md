@@ -22,3 +22,7 @@ It's a hybrid dex exchange built on Solana.
 
 1. Install dependencies: `pnpm install`
 2. Run development environment: `pnpm run dev`
+3. For Core Engine:
+    `cd service/routing-engine`
+    and run the server : 
+    `cargo run`

@@ -1,0 +1,9 @@
+node_modules
+apps/web/.next
+apps/web/node_modules
+services/routing-engine/target
+*.log
+.env
+.env.local
+.env.*.local
+dist
