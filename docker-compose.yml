@@ -38,6 +38,7 @@ services:
     environment:
       DATABASE_URL: "postgresql://postgres:password@postgres:5432/kaido?schema=public"
       REDIS_URL: "redis://redis:6379"
+      NATS_URL: "nats://nats:4222"
       JWT_SECRET: "kaido-dev-secret-change-this-in-production-at-least-32-chars"
       ROUTING_ENGINE_URL: "http://engine:5000"
       PORT: "4000"
@@ -45,6 +46,7 @@ services:
     depends_on:
       - postgres
       - redis
+      - nats
 
   engine:
     build:
