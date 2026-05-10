@@ -6,6 +6,7 @@ import { Navbar } from '../../components/Navbar';
 import { StatusBar } from '../../components/StatusBar';
 import { TrendingUp, TrendingDown, Activity } from 'lucide-react';
 import { cn } from '../../lib/utils';
+import { CoinIcon } from '../../components/CoinIcon';
 
 const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:4000';
 
@@ -122,9 +123,7 @@ class MarketsView extends Component<Record<string, never>, MarketsState> {
                         >
                           <td className="px-4 py-3.5">
                             <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/30 to-accent/20 flex items-center justify-center shrink-0">
-                                <span className="text-[10px] font-bold">{market.baseToken.slice(0, 3)}</span>
-                              </div>
+                              <CoinIcon symbol={market.symbol} size={32} />
                               <div>
                                 <div className="text-sm font-bold">{market.symbol}</div>
                                 <div className="text-[10px] text-gray-500">{market.baseToken}/{market.quoteToken}</div>
@@ -194,7 +193,7 @@ export default function MarketsPage() {
   return (
     <div className="min-h-screen flex flex-col bg-background text-white">
       <Navbar />
-      <main className="flex-1 overflow-y-auto p-4 lg:p-6 scrollbar-hide">
+      <main className="flex-1 p-4 lg:p-6 overflow-y-auto scrollbar-hide">
         <div className="max-w-7xl mx-auto">
           <MarketsView />
         </div>
