@@ -339,7 +339,6 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
     this.bars = bars;
     this.applyType(bars);
     this.chart?.timeScale().fitContent();
-    this.chart?.timeScale().scrollToRealtime();
     this.setState({ liveBar: bars.at(-1)!, loading: false, error: false });
   }
 
