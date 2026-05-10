@@ -6,7 +6,7 @@ const schema = z.object({
   NATS_URL:           z.string().default('nats://localhost:4222'),
   JWT_SECRET:         z.string().min(32),
   ROUTING_ENGINE_URL: z.string().url().default('http://localhost:5000'),
-  HELIUS_API_KEY:     z.string().min(1, 'HELIUS_API_KEY is required'),
+  HELIUS_API_KEY:     z.string().optional(),
   BIRDEYE_API_KEY:    z.string().optional(),
   ANTHROPIC_API_KEY:  z.string().optional(),
   PORT:               z.coerce.number().default(4000),

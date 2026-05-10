@@ -1,5 +1,7 @@
 'use client';
 
+import type { ReactNode } from 'react';
+
 /**
  * Shared coin icon component — inline SVG brand logos for all major assets.
  * Usage: <CoinIcon symbol="SOL" size={24} />
@@ -15,7 +17,7 @@ interface CoinIconProps {
 interface CoinMeta {
   bg: string;
   fg: string;
-  path: React.ReactNode;
+  path: ReactNode;
 }
 
 // Inline SVG paths — simplified brand-representative shapes at 24×24 viewBox
