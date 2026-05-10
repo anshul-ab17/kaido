@@ -22,6 +22,8 @@
     "@fastify/websocket": "^11.2.0",
     "@repo/cache": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/messaging": "workspace:*",
+    "@repo/sdk": "workspace:*",
     "@repo/types": "workspace:*",
     "@solana/web3.js": "^1.98.0",
     "bs58": "^6.0.0",

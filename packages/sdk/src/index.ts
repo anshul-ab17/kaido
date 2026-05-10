@@ -1,7 +1,31 @@
-export { SolanaConnection } from './connection.js';
-export type { ConnectionConfig } from './connection.js';
-export type { WalletAdapter, WalletAdapterEvents } from './wallet.js';
-export { JupiterClient } from './jupiter.js';
-export type { JupiterConfig } from './jupiter.js';
-export { PythClient } from './pyth.js';
-export type { PythConfig } from './pyth.js';
+import { JupiterClient } from './clients/jupiter.js';
+import { PythClient }    from './clients/pyth.js';
+import { HeliusClient }  from './clients/helius.js';
+import { BirdeyeClient } from './clients/birdeye.js';
+import { DeFiLlamaClient } from './clients/defillama.js';
+import { DriftClient }   from './clients/drift.js';
+import { SolanaRpcClient } from './clients/solana-rpc.js';
+
+export type { WalletAsset, OrderLevel, Pool, WhaleTx, FundingRate, JupiterQuote, LogPoseConfig } from './types.js';
+export { MINTS, DECIMALS } from './clients/jupiter.js';
+
+export interface LogPoseConfig {
+  heliusApiKey:  string;
+  birdeyeApiKey?: string;
+  rpcUrl?:        string;
+}
+
+export function createLogPoseSDK(config: LogPoseConfig) {
+  const rpcUrl = config.rpcUrl ?? `https://mainnet.helius-rpc.com/?api-key=${config.heliusApiKey}`;
+  return {
+    jupiter:   new JupiterClient(),
+    pyth:      new PythClient(),
+    helius:    new HeliusClient(config.heliusApiKey, rpcUrl),
+    birdeye:   new BirdeyeClient(config.birdeyeApiKey),
+    defillama: new DeFiLlamaClient(),
+    drift:     new DriftClient(),
+    solana:    new SolanaRpcClient(rpcUrl),
+  };
+}
+
+export type LogPoseSDK = ReturnType<typeof createLogPoseSDK>;
