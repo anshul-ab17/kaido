@@ -1,7 +1,7 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 import type { WsMessage } from '@repo/types';
-import { createNatsClient, TickProducer, TickConsumer } from '@repo/messaging';
+import { TickProducer, TickConsumer } from '@repo/messaging';
 import { config } from '../config.js';
 
 declare module 'fastify' {
@@ -20,21 +20,33 @@ const wsPlugin: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // Two NATS connections: one for publishing ticks, one for consuming them
-  const producerNc = await createNatsClient(config.NATS_URL);
-  const consumerNc = await createNatsClient(config.NATS_URL);
+  // Connect producer and consumer to NATS (gracefully skip if NATS unavailable)
+  const tickProducer = new TickProducer();
+  const tickConsumer = new TickConsumer();
+  let natsAvailable = false;
 
-  const tickProducer = new TickProducer(producerNc);
+  try {
+    await tickProducer.connect(config.NATS_URL);
+    await tickConsumer.connect(config.NATS_URL);
+    natsAvailable = true;
 
-  // Consumer fans out NATS tick messages to all connected WebSocket clients
-  const tickConsumer = new TickConsumer(consumerNc, (symbol, price, timestamp) => {
-    const msg: WsMessage = {
-      type: 'data',
-      payload: { channel: 'ticker', symbol, data: { symbol, price, timestamp }, timestamp },
-    };
-    fastify.broadcast(msg);
-  });
-  tickConsumer.start();
+    // Consumer fans out NATS tick messages to all connected WebSocket clients
+    tickConsumer.onTick((symbol, data) => {
+      const tickData = data as { price: number; timestamp: number };
+      const msg: WsMessage = {
+        type: 'data',
+        payload: {
+          channel: 'ticker',
+          symbol,
+          data: { symbol, price: tickData.price, timestamp: tickData.timestamp },
+          timestamp: tickData.timestamp,
+        },
+      };
+      fastify.broadcast(msg);
+    });
+  } catch (err) {
+    fastify.log.warn({ err }, 'NATS unavailable — WebSocket tick relay disabled');
+  }
 
   // WebSocket endpoint
   fastify.get('/ws', { websocket: true }, (socket) => {
@@ -52,12 +64,13 @@ const wsPlugin: FastifyPluginAsync = async (fastify) => {
 
   // Fetch live Pyth prices every 500ms and publish to NATS
   const tickInterval = setInterval(() => {
+    if (!natsAvailable) return;
     void (async () => {
       try {
         const prices = await fastify.sdk.pyth.getPrices();
         const now = Date.now();
         for (const [symbol, price] of Object.entries(prices)) {
-          tickProducer.publish(symbol, price, now);
+          tickProducer.publish(symbol, { price, timestamp: now });
         }
       } catch {
         // Pyth temporarily unreachable — skip this interval, next will retry
@@ -67,9 +80,10 @@ const wsPlugin: FastifyPluginAsync = async (fastify) => {
 
   fastify.addHook('onClose', async () => {
     clearInterval(tickInterval);
-    tickConsumer.stop();
-    await producerNc.drain();
-    await consumerNc.drain();
+    if (natsAvailable) {
+      await tickProducer.close();
+      await tickConsumer.close();
+    }
   });
 };
 
