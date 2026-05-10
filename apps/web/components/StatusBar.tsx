@@ -1,19 +1,19 @@
 'use client';
 
 import { Component } from 'react';
+import { cn } from '../lib/utils';
+import { useKaidoStore } from '../store';
 
-interface StatusBarState {
-  latency: number;
-  connected: boolean;
-}
+interface BarProps { wsStatus: string; latency: number }
+interface BarState  { latency: number }
 
-export class StatusBar extends Component<Record<string, never>, StatusBarState> {
-  override state: StatusBarState = { latency: 42, connected: true };
+class StatusBarInner extends Component<BarProps, BarState> {
+  override state: BarState = { latency: this.props.latency };
   private interval: ReturnType<typeof setInterval> | null = null;
 
   override componentDidMount() {
     this.interval = setInterval(() => {
-      this.setState({ latency: 30 + Math.floor(Math.random() * 40) });
+      this.setState({ latency: 18 + Math.floor(Math.random() * 30) });
     }, 3000);
   }
 
@@ -22,21 +22,36 @@ export class StatusBar extends Component<Record<string, never>, StatusBarState> 
   }
 
   override render() {
-    const { latency, connected } = this.state;
+    const { wsStatus } = this.props;
+    const { latency }  = this.state;
+    const connected    = wsStatus === 'connected';
+    const connecting   = wsStatus === 'connecting';
+
     return (
-      <footer className="h-7 border-t border-white/5 bg-black/80 flex items-center justify-between px-4 text-[10px] text-gray-500 font-mono shrink-0">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-1.5">
-            <div className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-success' : 'bg-error'}`} />
-            <span>{connected ? 'MAINNET-BETA' : 'DISCONNECTED'}</span>
+      <footer className="h-6 border-t border-white/[0.04] bg-[#141500]/90 flex items-center justify-between px-6 text-[9px] font-mono font-bold shrink-0">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2">
+            <div className={cn(
+              "w-1 h-1 rounded-full",
+              connected ? "bg-success" : connecting ? "bg-warning" : "bg-gray-800"
+            )} />
+            <span className={connected ? 'text-success/50 tracking-widest' : connecting ? 'text-warning/50' : 'text-gray-800'}>
+              {connected ? 'SOLANA MAINNET' : connecting ? 'NEGOTIATING…' : 'OFFLINE'}
+            </span>
           </div>
-          <span>LATENCY: {latency}ms</span>
+          {connected && <span className="text-gray-800 tracking-wider">LATENCY <span className="text-gray-600 font-black">{latency}ms</span></span>}
         </div>
-        <div className="flex items-center gap-4">
-          <span>RPC: HELIUS</span>
-          <span>v0.1.0</span>
+        <div className="flex items-center gap-6 text-gray-800 tracking-[0.1em]">
+          <span>NETWORK: HELIUS</span>
+          <span className="text-primary/20 font-black">KAIDO ENGINE</span>
+          <span className="text-gray-900">V1.0.4-STABLE</span>
         </div>
       </footer>
     );
   }
+}
+
+export function StatusBar() {
+  const wsStatus = useKaidoStore((s) => s.wsStatus);
+  return <StatusBarInner wsStatus={wsStatus} latency={42} />;
 }

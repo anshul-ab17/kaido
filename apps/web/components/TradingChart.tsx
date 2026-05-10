@@ -172,8 +172,8 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
       },
       crosshair: {
         mode: 1,
-        vertLine: { color: 'rgba(165,36,58,0.35)', width: 1, style: 3, labelBackgroundColor: '#0e0307' },
-        horzLine: { color: 'rgba(165,36,58,0.35)', width: 1, style: 3, labelBackgroundColor: '#A5243A' },
+        vertLine: { color: 'rgba(188,235,2,0.35)', width: 1, style: 3, labelBackgroundColor: '#0E0F00' },
+        horzLine: { color: 'rgba(188,235,2,0.35)', width: 1, style: 3, labelBackgroundColor: '#BCEB02' },
       },
       timeScale: {
         borderColor:    'rgba(255,255,255,0.04)',
@@ -191,9 +191,9 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
 
     /* 1 — Area (behind candles) */
     this.areaSeries = this.chart.addSeries(AreaSeries, {
-      lineColor:   'rgba(165,36,58,0.60)',
-      topColor:    'rgba(165,36,58,0.10)',
-      bottomColor: 'rgba(165,36,58,0.00)',
+      lineColor:   'rgba(188,235,2,0.60)',
+      topColor:    'rgba(188,235,2,0.10)',
+      bottomColor: 'rgba(188,235,2,0.00)',
       lineWidth:   1,
       lastValueVisible: false, priceLineVisible: false, crosshairMarkerVisible: false,
       priceScaleId: 'right',
@@ -346,7 +346,7 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
     return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
         {/* ── Toolbar ────────────────────────────────────── */}
-        <div className="flex items-center gap-1.5 px-2 h-9 border-b border-white/[0.04] bg-[#0e0307]/70 shrink-0">
+        <div className="flex items-center gap-1.5 px-2 h-9 border-b border-white/[0.04] bg-[#0E0F00]/70 shrink-0">
 
           {/* Timeframes */}
           <div className="flex items-center gap-px shrink-0">
@@ -520,7 +520,7 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
           <div ref={this.containerRef} className="absolute inset-0" />
 
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-[#060103]/60 z-10">
+            <div className="absolute inset-0 flex items-center justify-center bg-[#0B0C00]/60 z-10">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-7 h-7 border-2 border-primary/40 border-t-primary rounded-full animate-spin" />
                 <span className="text-[11px] font-mono text-gray-600">Loading market data…</span>

@@ -122,7 +122,7 @@ export class MarketHeader extends Component {
     return (
       <>
         <TabTitleUpdater />
-        <div className="h-14 flex items-center gap-2 px-4 border-b border-white/[0.04] bg-[#0e0307]/80 backdrop-blur-md shrink-0 overflow-x-auto scrollbar-hide">
+        <div className="h-14 flex items-center gap-2 px-4 border-b border-white/[0.04] bg-[#0E0F00]/80 backdrop-blur-md shrink-0 overflow-x-auto scrollbar-hide">
           <MarketSelector />
           <div className="w-px h-6 bg-white/[0.06] mx-1 shrink-0" />
           <LiveStats />

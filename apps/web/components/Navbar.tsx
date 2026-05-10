@@ -1,150 +1,131 @@
 'use client';
 
-import { Component } from 'react';
+import { Component, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Wallet, Zap, ChevronDown, Bell, Settings } from 'lucide-react';
+import { Wallet, ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
-import { Badge } from '@repo/ui/badge';
 import { useKaidoStore } from '../store';
 
-interface NavItem {
-  label: string;
-  href: string;
-  hot?: boolean;
-}
+interface NavItem { label: string; href: string; hot?: boolean }
 
 const NAV_ITEMS: NavItem[] = [
-  { label: 'Markets', href: '/markets' },
-  { label: 'Perps', href: '/', hot: true },
-  { label: 'Events', href: '/events' },
-  { label: 'Predict', href: '/events' },
+  { label: 'Markets',   href: '/markets'   },
+  { label: 'Perps',     href: '/perps' },
+  { label: 'Predict',   href: '/events'    },
   { label: 'Portfolio', href: '/portfolio' },
 ];
 
-const MORE_ITEMS = ['Insights', 'Liquidity', 'Whales', 'Analytics', 'AI Copilot', 'Stake', 'Watchlist'];
+const MORE_ITEMS = [
+  { label: 'Insights',   href: '/insights'   },
+  { label: 'AI Copilot', href: '/ai-copilot' },
+  { label: 'Watchlist',  href: '/watchlist'  },
+  { label: 'Stake',      href: '/stake'      },
+];
 
-function NavLinks({ moreOpen, onToggleMore }: { moreOpen: boolean; onToggleMore: () => void }) {
-  const pathname = usePathname();
+function NavLinks() {
+  const pathname  = usePathname();
+  const [open, setOpen] = useState(false);
+
   return (
-    <nav className="hidden md:flex items-center gap-1 relative">
+    <nav className="hidden md:flex items-center gap-0.5 relative">
       {NAV_ITEMS.map((item) => {
-        const active = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
+        const active = pathname.startsWith(item.href);
         return (
           <Link
-            key={`${item.label}-${item.href}`}
+            key={item.label}
             href={item.href}
             className={cn(
-              'relative px-4 py-1.5 rounded-md text-sm font-medium transition-all',
-              active ? 'text-white' : 'text-gray-400 hover:text-white hover:bg-white/5'
+              'relative px-4 py-1.5 rounded-full text-[13px] font-bold transition-colors duration-150',
+              active ? 'text-primary bg-primary/10' : 'text-gray-500 hover:text-white hover:bg-white/[0.04]',
             )}
           >
             {item.label}
             {item.hot && (
-              <span className="absolute -top-1 -right-1 flex h-2 w-2">
+              <span className="absolute top-1.5 right-2 flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-primary" />
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-primary" />
               </span>
-            )}
-            {active && (
-              <div className="absolute bottom-[-14px] left-0 right-0 h-[2px] bg-primary glow-crimson" />
             )}
           </Link>
         );
       })}
 
+      {/* More dropdown */}
       <div className="relative">
         <button
-          onClick={onToggleMore}
-          className="flex items-center gap-1 px-4 py-1.5 text-sm font-medium text-gray-400 hover:text-white transition-all"
+          onClick={() => setOpen((v) => !v)}
+          className={cn(
+            'flex items-center gap-1 px-4 py-1.5 text-[13px] font-bold transition-colors rounded-full',
+            open ? 'text-white bg-white/[0.06]' : 'text-gray-500 hover:text-white hover:bg-white/[0.04]',
+          )}
         >
-          More <ChevronDown className={cn('w-3 h-3 transition-transform', moreOpen && 'rotate-180')} />
+          More
+          <ChevronDown className={cn('w-3 h-3 transition-transform duration-200', open && 'rotate-180')} />
         </button>
-        {moreOpen && (
-          <div className="absolute top-full left-0 mt-2 w-40 glass rounded-xl border border-white/10 py-1 z-50">
-            {MORE_ITEMS.map((item) => (
-              <button
-                key={item}
-                className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:text-white hover:bg-white/5 transition-colors"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
+
+        {open && (
+          <>
+            <div className="fixed inset-0 z-[190]" onClick={() => setOpen(false)} />
+            <div className="absolute top-full left-0 mt-2 w-44 bg-[#0c0210] border border-white/[0.07] rounded-2xl p-1.5 z-[200] shadow-[0_16px_48px_rgba(0,0,0,0.80)]">
+              {MORE_ITEMS.map((item) => (
+                <Link
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setOpen(false)}
+                  className="block px-3 py-2 text-[13px] font-bold text-gray-500 hover:text-white hover:bg-white/[0.05] rounded-xl transition-colors"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </div>
+          </>
         )}
       </div>
     </nav>
   );
 }
 
-function NavCenterStats() {
-  const tickers = useKaidoStore((s) => s.tickers);
-  const solPrice = tickers['SOL-PERP']?.price ?? 145.20;
-  return (
-    <div className="hidden lg:flex items-center gap-6 px-5 py-1.5 bg-black/40 rounded-full border border-white/5">
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] font-mono text-gray-500 uppercase">SOL</span>
-        <span className="text-xs font-bold text-success">${solPrice.toFixed(2)}</span>
-      </div>
-      <div className="w-px h-3 bg-white/10" />
-      <div className="flex items-center gap-2">
-        <span className="text-[10px] font-mono text-gray-500 uppercase">TPS</span>
-        <span className="text-xs font-bold text-accent">2,842</span>
-      </div>
-      <div className="w-px h-3 bg-white/10" />
-      <Badge variant="success" pulse>LIVE</Badge>
-    </div>
-  );
+interface NavbarInnerProps {
+  wallet: { connected: boolean; publicKey: string | null };
+  onOpenWallet: () => void;
 }
 
-interface NavbarState {
-  moreOpen: boolean;
-  walletConnecting: boolean;
-}
-
-export class Navbar extends Component<Record<string, never>, NavbarState> {
-  override state: NavbarState = { moreOpen: false, walletConnecting: false };
-
-  private toggleMore = () => this.setState((s) => ({ moreOpen: !s.moreOpen }));
-
-  private handleConnect = () => {
-    this.setState({ walletConnecting: true });
-    setTimeout(() => this.setState({ walletConnecting: false }), 1500);
-  };
-
+class NavbarInner extends Component<NavbarInnerProps> {
   override render() {
-    const { moreOpen, walletConnecting } = this.state;
+    const { wallet, onOpenWallet } = this.props;
     return (
-      <header className="h-14 border-b border-white/5 glass flex items-center justify-between px-6 z-50 sticky top-0">
-        <div className="flex items-center gap-8">
-          <Link href="/" className="flex items-center gap-2 cursor-pointer group">
-            <div className="w-7 h-7 bg-primary rounded flex items-center justify-center glow-crimson transition-transform group-hover:scale-110">
-              <Zap className="text-white w-4 h-4 fill-white" />
+      <header className="h-14 border-b border-white/[0.04] bg-[#0E0F00]/90 backdrop-blur-2xl flex items-center justify-between px-6 z-[100] sticky top-0 shrink-0">
+        {/* Left — logo + nav */}
+        <div className="flex items-center gap-6">
+          <Link href="/" className="flex items-center cursor-pointer group shrink-0">
+            <div className="w-9 h-9 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+              <svg viewBox="0 0 100 100" className="w-8 h-8 fill-primary drop-shadow-[0_0_10px_rgba(188,235,2,0.60)]">
+                <path d="M42,15 Q65,42 65,72 L42,72 Z" />
+                <path d="M12,92 L88,72 L78,92 Z" />
+              </svg>
             </div>
-            <span className="text-lg font-bold tracking-tighter uppercase font-heading">Kaido</span>
           </Link>
-          <NavLinks moreOpen={moreOpen} onToggleMore={this.toggleMore} />
+          <NavLinks />
         </div>
 
-        <NavCenterStats />
-
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1 text-gray-400">
-            <button className="p-2 hover:text-white transition-colors"><Bell className="w-4 h-4" /></button>
-            <button className="p-2 hover:text-white transition-colors"><Settings className="w-4 h-4" /></button>
-          </div>
-          <button
-            onClick={this.handleConnect}
-            disabled={walletConnecting}
-            className="bg-primary text-white px-4 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all glow-crimson disabled:opacity-70"
-          >
-            {walletConnecting
-              ? <span className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-              : <Wallet className="w-3.5 h-3.5" />}
-            {walletConnecting ? 'Connecting...' : 'Connect Wallet'}
-          </button>
-        </div>
+        {/* Right — wallet only */}
+        <button
+          onClick={onOpenWallet}
+          className="h-9 px-5 bg-primary text-black rounded-full text-[13px] font-bold flex items-center gap-2 hover:brightness-110 active:scale-95 transition-all shadow-[0_0_18px_rgba(188,235,2,0.35)]"
+        >
+          <Wallet className="w-4 h-4" />
+          {wallet.connected && wallet.publicKey
+            ? `${wallet.publicKey.slice(0, 4)}…${wallet.publicKey.slice(-4)}`
+            : 'Connect Wallet'}
+        </button>
       </header>
     );
   }
+}
+
+export function Navbar() {
+  const wallet             = useKaidoStore((s) => s.wallet);
+  const setWalletModalOpen = useKaidoStore((s) => s.setWalletModalOpen);
+  return <NavbarInner wallet={wallet} onOpenWallet={() => setWalletModalOpen(true)} />;
 }
