@@ -60,7 +60,7 @@ export interface JupiterQuote {
 
 // SDK config
 export interface LogPoseConfig {
-  heliusApiKey:  string;
+  heliusApiKey?:  string;
   birdeyeApiKey?: string;
   rpcUrl?:        string;
   natsUrl?:       string;

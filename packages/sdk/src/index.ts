@@ -9,12 +9,6 @@ import { SolanaRpcClient } from './clients/solana-rpc.js';
 export type { WalletAsset, OrderLevel, Pool, WhaleTx, FundingRate, JupiterQuote, LogPoseConfig } from './types.js';
 export { MINTS, DECIMALS } from './clients/jupiter.js';
 
-export interface LogPoseConfig {
-  heliusApiKey:  string;
-  birdeyeApiKey?: string;
-  rpcUrl?:        string;
-}
-
 export function createLogPoseSDK(config: LogPoseConfig) {
   const rpcUrl = config.rpcUrl ?? `https://mainnet.helius-rpc.com/?api-key=${config.heliusApiKey}`;
   return {
