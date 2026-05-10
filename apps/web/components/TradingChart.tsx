@@ -119,6 +119,7 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
   private ema50Series:  LineHandle   | null = null;
   private resizeObs:    ResizeObserver | null = null;
   private rafId:        number | null = null;
+  private refreshTimer: ReturnType<typeof setInterval> | null = null;
   private bars:         OHLCVBar[] = [];
 
   override componentDidMount() {
@@ -126,10 +127,13 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
       this.initChart();
       void this.fetchCandles();
     });
+    // Refresh candle data every 5 minutes to stay current
+    this.refreshTimer = setInterval(() => { void this.fetchCandles(); }, 5 * 60 * 1000);
   }
 
   override componentWillUnmount() {
     if (this.rafId !== null) cancelAnimationFrame(this.rafId);
+    if (this.refreshTimer !== null) clearInterval(this.refreshTimer);
     this.resizeObs?.disconnect();
     this.chart?.remove();
   }
@@ -338,7 +342,9 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
 
     this.bars = bars;
     this.applyType(bars);
-    this.chart?.timeScale().fitContent();
+    // Show last 150 candles with a small right margin — keeps latest bar visible
+    const len = bars.length;
+    this.chart?.timeScale().setVisibleLogicalRange({ from: Math.max(0, len - 150), to: len + 3 });
     this.setState({ liveBar: bars.at(-1)!, loading: false, error: false });
   }
 
