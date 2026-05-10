@@ -20,6 +20,43 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes
 
+  nats:
+    image: nats:latest
+    command: ["-js", "-m", "8222"]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: "postgresql://postgres:password@postgres:5432/kaido?schema=public"
+      REDIS_URL: "redis://redis:6379"
+      JWT_SECRET: "kaido-dev-secret-change-this-in-production-at-least-32-chars"
+      ROUTING_ENGINE_URL: "http://engine:5000"
+      PORT: "4000"
+      NODE_ENV: "production"
+    depends_on:
+      - postgres
+      - redis
+
+  engine:
+    build:
+      context: .
+      dockerfile: services/routing-engine/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      PORT: "5000"
+      RUST_LOG: "info"
+
 volumes:
   postgres_data:
   redis_data:
