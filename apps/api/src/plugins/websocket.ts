@@ -1,9 +1,8 @@
 import fp from 'fastify-plugin';
 import type { FastifyPluginAsync } from 'fastify';
 import type { WsMessage } from '@repo/types';
-import { createCache, StreamProducer, StreamConsumer } from '@repo/cache';
-
-const TICK_STREAM = 'kaido:ticks';
+import { createNatsClient, TickProducer, TickConsumer } from '@repo/messaging';
+import { config } from '../config.js';
 
 declare module 'fastify' {
   interface FastifyInstance {
@@ -21,26 +20,23 @@ const wsPlugin: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // Dedicated connections for stream producer and consumer
-  const producerClient = createCache(process.env['REDIS_URL'] ?? 'redis://localhost:6379');
-  const consumerClient = createCache(process.env['REDIS_URL'] ?? 'redis://localhost:6379');
-  await producerClient.connect();
-  await consumerClient.connect();
+  // Two NATS connections: one for publishing ticks, one for consuming them
+  const producerNc = await createNatsClient(config.NATS_URL);
+  const consumerNc = await createNatsClient(config.NATS_URL);
 
-  const producer = new StreamProducer(producerClient);
+  const tickProducer = new TickProducer(producerNc);
 
-  // Consumer fans out stream entries to all WebSocket clients
-  const consumer = new StreamConsumer(consumerClient, TICK_STREAM, (entry) => {
-    if (!entry['data']) return;
-    const tick = JSON.parse(entry['data']) as { channel: string; symbol: string; price: number; timestamp: number };
-    const message: WsMessage = {
+  // Consumer fans out NATS tick messages to all connected WebSocket clients
+  const tickConsumer = new TickConsumer(consumerNc, (symbol, price, timestamp) => {
+    const msg: WsMessage = {
       type: 'data',
-      payload: { channel: 'ticker', symbol: tick.symbol, data: tick, timestamp: tick.timestamp },
+      payload: { channel: 'ticker', symbol, data: { symbol, price, timestamp }, timestamp },
     };
-    fastify.broadcast(message);
+    fastify.broadcast(msg);
   });
-  consumer.start();
+  tickConsumer.start();
 
+  // WebSocket endpoint
   fastify.get('/ws', { websocket: true }, (socket) => {
     clients.add(socket);
     socket.on('message', (raw: Buffer) => {
@@ -54,33 +50,26 @@ const wsPlugin: FastifyPluginAsync = async (fastify) => {
     socket.on('close', () => clients.delete(socket));
   });
 
-  // Mock tick producer — publishes tickers every 500ms
-  const TICKERS = [
-    { symbol: 'SOL-PERP', basePrice: 145 },
-    { symbol: 'BTC-PERP', basePrice: 67_420 },
-    { symbol: 'ETH-PERP', basePrice: 3_512 },
-  ];
-
+  // Fetch live Pyth prices every 500ms and publish to NATS
   const tickInterval = setInterval(() => {
-    const now = Date.now();
-    for (const { symbol, basePrice } of TICKERS) {
-      void producer.publish(TICK_STREAM, {
-        data: JSON.stringify({
-          channel: 'ticker',
-          symbol,
-          price: String(basePrice + (Math.random() - 0.5) * basePrice * 0.002),
-          timestamp: String(now),
-        }),
-        timestamp: String(now),
-      });
-    }
+    void (async () => {
+      try {
+        const prices = await fastify.sdk.pyth.getPrices();
+        const now = Date.now();
+        for (const [symbol, price] of Object.entries(prices)) {
+          tickProducer.publish(symbol, price, now);
+        }
+      } catch {
+        // Pyth temporarily unreachable — skip this interval, next will retry
+      }
+    })();
   }, 500);
 
   fastify.addHook('onClose', async () => {
     clearInterval(tickInterval);
-    consumer.stop();
-    await producerClient.quit();
-    await consumerClient.quit();
+    tickConsumer.stop();
+    await producerNc.drain();
+    await consumerNc.drain();
   });
 };
 
