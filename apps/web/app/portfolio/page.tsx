@@ -18,6 +18,25 @@ const API_URL = process.env['NEXT_PUBLIC_API_URL'] ?? 'http://localhost:4000';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
+// Jupiter Prediction position (subset of API shape)
+interface JupPosition {
+  pubkey:         string;
+  marketId:       string;
+  isYes:          boolean;
+  contracts:      string;
+  avgPriceUsd:    string;   // micro USD
+  totalCostUsd:   string;   // micro USD
+  valueUsd:       string | null;
+  pnlUsd:         string | null;
+  pnlUsdPercent:  number | null;
+  payoutUsd:      string;   // micro USD
+  claimable:      boolean;
+  claimed:        boolean;
+  openedAt:       number;
+  eventMetadata:  { title: string; slug: string; category: string };
+  marketMetadata: { title: string };
+}
+
 interface Holding { symbol: string; amount: number; usdValue: number; change24h: number; avgPrice: number }
 
 interface PortfolioData {
@@ -394,7 +413,6 @@ class DepositModal extends Component<DepositModalProps, DepositModalState> {
 
 interface PortfolioViewState {
   tab: PortfolioTab;
-  connected: boolean;
   showDeposit: boolean;
   depositInitialTab: DepositTab;
   portfolio: PortfolioData | null;
@@ -405,6 +423,8 @@ interface PortfolioViewState {
   perfData: PerfPoint[];
   loading: boolean;
   perfLoading: boolean;
+  jupPositions: JupPosition[];
+  jupLoading: boolean;
 }
 
 const TABS: { key: PortfolioTab; label: string }[] = [
@@ -417,26 +437,55 @@ const TABS: { key: PortfolioTab; label: string }[] = [
   { key: 'analytics',   label: 'Analytics'   },
 ];
 
-interface PortfolioViewProps { eventPositions: EventPosition[] }
+interface PortfolioViewProps {
+  eventPositions: EventPosition[];
+  walletConnected: boolean;
+  walletAddress: string | null;
+  onOpenWallet: () => void;
+}
 
 class PortfolioView extends Component<PortfolioViewProps, PortfolioViewState> {
   override state: PortfolioViewState = {
-    tab: 'holdings', connected: false, showDeposit: false, depositInitialTab: 'deposit',
+    tab: 'holdings', showDeposit: false, depositInitialTab: 'deposit',
     portfolio: null, positions: [], orders: [], trades: [], funding: [],
     perfData: [], loading: true, perfLoading: true,
+    jupPositions: [], jupLoading: false,
   };
 
-  override componentDidUpdate(_prevProps: PortfolioViewProps, prev: PortfolioViewState) {
-    if (!prev.connected && this.state.connected) void this.fetchAll();
+  override componentDidMount() {
+    const { walletConnected, walletAddress } = this.props;
+    if (walletConnected && walletAddress) void this.fetchAll();
+    else this.setState({ loading: false, perfLoading: false });
+  }
+
+  override componentDidUpdate(prevProps: PortfolioViewProps) {
+    const { walletConnected, walletAddress } = this.props;
+    const prevReady = prevProps.walletConnected && !!prevProps.walletAddress;
+    const nowReady  = walletConnected && !!walletAddress;
+
+    if (!nowReady && prevReady) {
+      this.setState({
+        portfolio: null, positions: [], orders: [], trades: [], funding: [],
+        perfData: [], loading: false, perfLoading: false,
+      });
+      return;
+    }
+
+    if (nowReady && (!prevReady || prevProps.walletAddress !== walletAddress)) {
+      void this.fetchAll();
+    }
   }
 
   private async fetchAll() {
+    const addr = this.props.walletAddress;
+    if (!addr) return;
+    const w = encodeURIComponent(addr);
     this.setState({ loading: true });
     const [portRes, posRes, ordRes, tradesRes, fundRes] = await Promise.allSettled([
-      fetch(`${API_URL}/portfolio`).then((r) => r.json()),
-      fetch(`${API_URL}/positions`).then((r) => r.json()),
-      fetch(`${API_URL}/orders`).then((r) => r.json()),
-      fetch(`${API_URL}/trades`).then((r) => r.json()),
+      fetch(`${API_URL}/portfolio?wallet=${w}`).then((r) => r.json()),
+      fetch(`${API_URL}/positions?wallet=${w}`).then((r) => r.json()),
+      fetch(`${API_URL}/orders?wallet=${w}`).then((r) => r.json()),
+      fetch(`${API_URL}/trades?wallet=${w}`).then((r) => r.json()),
       fetch(`${API_URL}/funding`).then((r) => r.json()),
     ]);
     this.setState({
@@ -448,12 +497,31 @@ class PortfolioView extends Component<PortfolioViewProps, PortfolioViewState> {
       loading: false,
     });
     void this.fetchPerf('30d');
+    void this.fetchJupPositions(addr);
+  }
+
+  private async fetchJupPositions(walletAddress: string) {
+    this.setState({ jupLoading: true });
+    try {
+      const res  = await fetch(`${API_URL}/prediction/positions?wallet=${encodeURIComponent(walletAddress)}`);
+      if (res.ok) {
+        const data = (await res.json()) as { positions: JupPosition[] };
+        this.setState({ jupPositions: data.positions ?? [], jupLoading: false });
+      } else {
+        this.setState({ jupPositions: [], jupLoading: false });
+      }
+    } catch {
+      this.setState({ jupPositions: [], jupLoading: false });
+    }
   }
 
   private async fetchPerf(range: PerfRange) {
+    const addr = this.props.walletAddress;
+    if (!addr) return;
+    const w = encodeURIComponent(addr);
     this.setState({ perfLoading: true });
     try {
-      const res  = await fetch(`${API_URL}/portfolio/performance?range=${range}`);
+      const res  = await fetch(`${API_URL}/portfolio/performance?wallet=${w}&range=${range}`);
       const data = (await res.json()) as { performance: PerfPoint[] };
       this.setState({ perfData: data.performance, perfLoading: false });
     } catch { this.setState({ perfLoading: false }); }
@@ -814,12 +882,85 @@ class PortfolioView extends Component<PortfolioViewProps, PortfolioViewState> {
   // ── Predictions tab ──
   private renderPredictions() {
     const { eventPositions } = this.props;
-    if (!eventPositions.length) {
-      return <EmptyState icon={Layers} label="No prediction positions" sub="Bet on events to see your positions here" />;
+    const { jupPositions, jupLoading } = this.state;
+    const hasAny = eventPositions.length > 0 || jupPositions.length > 0 || jupLoading;
+    if (!hasAny) {
+      return <EmptyState icon={Layers} label="No prediction positions" sub="Trade on events in the Prediction Markets tab to see positions here" />;
     }
     return (
-      <div className="space-y-3">
-        {eventPositions.map((pos) => {
+      <div className="space-y-4">
+
+        {/* Jupiter positions (on-chain via Jupiter Prediction API) */}
+        {(jupPositions.length > 0 || jupLoading) && (
+          <div className="space-y-3">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 px-1">Jupiter Prediction · On-chain</p>
+            {jupLoading && jupPositions.length === 0 && (
+              <div className="glass-card p-4 animate-pulse h-20" />
+            )}
+            {jupPositions.map((pos) => {
+              const micro = (v: string | null) => v ? parseInt(v, 10) / 1_000_000 : null;
+              const cost    = micro(pos.totalCostUsd) ?? 0;
+              const value   = micro(pos.valueUsd);
+              const pnlUsd  = micro(pos.pnlUsd);
+              const payout  = micro(pos.payoutUsd) ?? 0;
+              const pnlPos  = (pnlUsd ?? 0) >= 0;
+              const avgPrice = parseInt(pos.avgPriceUsd, 10) / 10_000; // micro USD → cents
+              const contracts = parseInt(pos.contracts, 10);
+              return (
+                <div key={pos.pubkey} className="glass-card p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">{pos.eventMetadata.category}</p>
+                      <p className="text-sm font-semibold leading-snug truncate">{pos.eventMetadata.title}</p>
+                      <p className="text-[11px] text-gray-500 mt-0.5 truncate">{pos.marketMetadata.title}</p>
+                    </div>
+                    <div className="text-right shrink-0 space-y-0.5">
+                      {pnlUsd !== null && (
+                        <p className={cn('text-sm font-bold font-mono', pnlPos ? 'text-success' : 'text-error')}>
+                          {pnlPos ? '+' : ''}${pnlUsd.toFixed(2)}
+                        </p>
+                      )}
+                      {pos.claimable && (
+                        <span className="inline-block text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/20">
+                          Claimable
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className={cn('rounded-lg px-3 py-2.5 border', pos.isYes ? 'bg-success/[0.06] border-success/[0.12]' : 'bg-error/[0.06] border-error/[0.12]')}>
+                      <p className={cn('text-[10px] font-bold uppercase tracking-wider mb-1', pos.isYes ? 'text-success/70' : 'text-error/70')}>
+                        {pos.isYes ? 'YES' : 'NO'}
+                      </p>
+                      <p className={cn('text-sm font-mono font-bold', pos.isYes ? 'text-success' : 'text-error')}>
+                        {contracts} contracts
+                      </p>
+                      <p className="text-[10px] text-gray-600 mt-0.5">
+                        avg {avgPrice.toFixed(1)}¢ · cost ${cost.toFixed(2)}
+                      </p>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Payout if wins</p>
+                      <p className="text-sm font-mono font-bold text-white">${payout.toFixed(2)}</p>
+                      {value !== null && (
+                        <p className="text-[10px] text-gray-600 mt-0.5">mark ${value.toFixed(2)}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Kaido native LMSR positions */}
+        {eventPositions.length > 0 && (
+          <div className="space-y-3">
+            {jupPositions.length > 0 && (
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-500 px-1">Kaido Native Events</p>
+            )}
+            {eventPositions.map((pos) => {
           const yesVal  = pos.yesValue;
           const noVal   = pos.noValue;
           const cost    = pos.yesCost + pos.noCost;
@@ -871,14 +1012,18 @@ class PortfolioView extends Component<PortfolioViewProps, PortfolioViewState> {
             </div>
           );
         })}
+          </div>
+        )}
+
       </div>
     );
   }
 
   override render() {
-    const { tab, connected, showDeposit, depositInitialTab, portfolio, perfData, perfLoading } = this.state;
+    const { tab, showDeposit, depositInitialTab, portfolio, perfData, perfLoading } = this.state;
+    const { walletConnected, walletAddress, onOpenWallet } = this.props;
 
-    if (!connected) {
+    if (!walletConnected || !walletAddress) {
       return (
         <div className="flex flex-col items-center justify-center py-28 gap-5">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/[0.15] flex items-center justify-center">
@@ -890,12 +1035,14 @@ class PortfolioView extends Component<PortfolioViewProps, PortfolioViewState> {
           </div>
           <div className="flex gap-3">
             <button
-              onClick={() => this.setState({ connected: true })}
+              type="button"
+              onClick={() => onOpenWallet()}
               className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all"
             >
               Connect Wallet
             </button>
             <button
+              type="button"
               onClick={() => this.setState({ showDeposit: true, depositInitialTab: 'deposit' })}
               className="px-6 py-2.5 bg-white/[0.05] border border-white/[0.08] text-gray-300 rounded-xl text-sm font-semibold hover:bg-white/[0.08] transition-all"
             >
@@ -985,13 +1132,21 @@ function Spinner() {
 // ── Page ───────────────────────────────────────────────────────────────────
 
 export default function PortfolioPage() {
-  const eventPositions = useKaidoStore((s) => s.eventPositions);
+  const eventPositions   = useKaidoStore((s) => s.eventPositions);
+  const wallet           = useKaidoStore((s) => s.wallet);
+  const setWalletModalOpen = useKaidoStore((s) => s.setWalletModalOpen);
+  const walletConnected  = wallet.connected && !!wallet.publicKey;
   return (
     <div className="min-h-screen flex flex-col bg-background text-white">
       <Navbar />
       <main className="flex-1 overflow-y-auto p-4 lg:p-6 scrollbar-hide">
         <div className="max-w-7xl mx-auto">
-          <PortfolioView eventPositions={eventPositions} />
+          <PortfolioView
+            eventPositions={eventPositions}
+            walletConnected={walletConnected}
+            walletAddress={wallet.publicKey}
+            onOpenWallet={() => setWalletModalOpen(true)}
+          />
         </div>
       </main>
       <StatusBar />

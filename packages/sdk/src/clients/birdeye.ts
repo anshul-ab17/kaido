@@ -47,14 +47,21 @@ export class BirdeyeClient {
     const price = await this.getTokenPrice(mintAddress);
     const step  = price * 0.00015;
 
-    const makeLevel = (p: number): OrderLevel => ({
+    const levelSize = (side: 'ask' | 'bid', i: number): number => {
+      let h = 0;
+      const seed = `${mintAddress}:${side}:${i}`;
+      for (let j = 0; j < seed.length; j++) h = (h * 31 + seed.charCodeAt(j)) >>> 0;
+      return +((5 + (h % 10_000) / 100).toFixed(2));
+    };
+
+    const makeLevel = (p: number, side: 'ask' | 'bid', i: number): OrderLevel => ({
       price: p,
-      size:  parseFloat((Math.random() * 150 + 5).toFixed(2)),
+      size:  levelSize(side, i),
       total: 0,
     });
 
-    const asks = Array.from({ length: limit }, (_, i) => makeLevel(+(price + (i + 1) * step).toFixed(4)));
-    const bids = Array.from({ length: limit }, (_, i) => makeLevel(+(price - (i + 1) * step).toFixed(4)));
+    const asks = Array.from({ length: limit }, (_, i) => makeLevel(+(price + (i + 1) * step).toFixed(4), 'ask', i));
+    const bids = Array.from({ length: limit }, (_, i) => makeLevel(+(price - (i + 1) * step).toFixed(4), 'bid', i));
 
     let t = 0;
     for (const a of asks) { t += a.size; a.total = +t.toFixed(2); }

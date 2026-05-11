@@ -1,4 +1,5 @@
 import type { WalletAsset, WhaleTx } from '../types.js';
+import type { SolanaCluster } from '../types.js';
 
 const JUPITER_PROGRAM = 'JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4';
 
@@ -31,11 +32,21 @@ export class HeliusClient {
   private dasUrl: string;
   private apiUrl: string;
   private apiKey: string;
+  private readonly devnet: boolean;
 
-  constructor(apiKey: string, rpcUrl?: string) {
-    this.dasUrl = rpcUrl ?? `https://mainnet.helius-rpc.com/?api-key=${apiKey}`;
+  constructor(apiKey: string | undefined, rpcUrl: string | undefined, cluster: SolanaCluster = 'devnet') {
+    this.devnet = cluster === 'devnet';
+    this.apiKey = apiKey ?? '';
+    this.dasUrl =
+      rpcUrl ??
+      (this.apiKey
+        ? this.devnet
+          ? `https://devnet.helius-rpc.com/?api-key=${this.apiKey}`
+          : `https://mainnet.helius-rpc.com/?api-key=${this.apiKey}`
+        : this.devnet
+          ? 'https://api.devnet.solana.com'
+          : 'https://api.mainnet-beta.solana.com');
     this.apiUrl = `https://api.helius.xyz/v0`;
-    this.apiKey = apiKey;
   }
 
   async getWalletAssets(walletAddress: string): Promise<WalletAsset[]> {
@@ -83,6 +94,8 @@ export class HeliusClient {
   }
 
   async getLargeTransactions(minUsdValue: number, limit = 20): Promise<WhaleTx[]> {
+    if (this.devnet || !this.apiKey) return [];
+
     const url = `${this.apiUrl}/addresses/${JUPITER_PROGRAM}/transactions?api-key=${this.apiKey}&limit=100&type=SWAP`;
     const res = await fetch(url, { signal: AbortSignal.timeout(10000) });
     if (!res.ok) throw new Error(`Helius enhanced txs ${res.status}`);

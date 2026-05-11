@@ -1,5 +1,10 @@
+interface SigStatusValue {
+  err:            unknown;
+  confirmationStatus?: 'processed' | 'confirmed' | 'finalized';
+}
+
 export class SolanaRpcClient {
-  constructor(private rpcUrl = 'https://api.mainnet-beta.solana.com') {}
+  constructor(private rpcUrl = 'https://api.devnet.solana.com') {}
 
   private async rpc<T>(method: string, params: unknown[] = []): Promise<T> {
     const res = await fetch(this.rpcUrl, {
@@ -24,5 +29,17 @@ export class SolanaRpcClient {
     );
     const s = samples[0];
     return s ? Math.round(s.numTransactions / s.samplePeriodSecs) : 0;
+  }
+
+  /** Returns true if signature is confirmed or finalized on-chain (no error). */
+  async isTransactionConfirmed(signature: string): Promise<boolean> {
+    const result = await this.rpc<{ value: (SigStatusValue | null)[] }>('getSignatureStatuses', [
+      [signature],
+      { searchTransactionHistory: true },
+    ]);
+    const st = result.value[0];
+    if (!st || st.err) return false;
+    const c = st.confirmationStatus;
+    return c === 'confirmed' || c === 'finalized';
   }
 }

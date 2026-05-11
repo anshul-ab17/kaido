@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { SolanaProviders } from "../components/SolanaProviders";
 import { WebSocketProvider } from "../components/WebSocketProvider";
 import { WalletModal } from "../components/WalletModal";
 import { TransactionToast } from "../components/TransactionToast";
@@ -23,11 +24,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${inter.variable} ${outfit.variable} ${jetbrains.variable} antialiased bg-background text-white`}>
-        <WebSocketProvider>
-          {children}
-          <WalletModal />
-          <TransactionToast />
-        </WebSocketProvider>
+        <SolanaProviders>
+          <WebSocketProvider>
+            {children}
+            <WalletModal />
+            <TransactionToast />
+          </WebSocketProvider>
+        </SolanaProviders>
       </body>
     </html>
   );

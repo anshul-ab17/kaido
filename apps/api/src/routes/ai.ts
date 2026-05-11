@@ -55,7 +55,7 @@ export const aiRoutes: FastifyPluginAsync = async (fastify) => {
 
     if (!res.ok) {
       const err = await res.text();
-      fastify.log.error('Anthropic API error:', err);
+      fastify.log.error({ err }, 'Anthropic API error');
       return reply.code(502).send({ error: `AI service error: ${res.status}` });
     }
 

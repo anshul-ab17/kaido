@@ -4,6 +4,11 @@ import { Component } from 'react';
 import { cn } from '../lib/utils';
 import { useKaidoStore } from '../store';
 
+function clusterLabel(): string {
+  const c = process.env['NEXT_PUBLIC_SOLANA_CLUSTER'] ?? 'devnet';
+  return c === 'mainnet-beta' ? 'SOLANA MAINNET' : 'SOLANA DEVNET';
+}
+
 interface BarProps { wsStatus: string; latency: number }
 interface BarState  { latency: number }
 
@@ -36,13 +41,13 @@ class StatusBarInner extends Component<BarProps, BarState> {
               connected ? "bg-success" : connecting ? "bg-warning" : "bg-gray-800"
             )} />
             <span className={connected ? 'text-success/50 tracking-widest' : connecting ? 'text-warning/50' : 'text-gray-800'}>
-              {connected ? 'SOLANA MAINNET' : connecting ? 'NEGOTIATING…' : 'OFFLINE'}
+              {connected ? clusterLabel() : connecting ? 'NEGOTIATING…' : 'OFFLINE'}
             </span>
           </div>
           {connected && <span className="text-gray-800 tracking-wider">LATENCY <span className="text-gray-600 font-black">{latency}ms</span></span>}
         </div>
         <div className="flex items-center gap-6 text-gray-800 tracking-[0.1em]">
-          <span>NETWORK: HELIUS</span>
+          <span>NETWORK: {(process.env['NEXT_PUBLIC_SOLANA_CLUSTER'] ?? 'devnet').toUpperCase()}</span>
           <span className="text-primary/20 font-black">KAIDO ENGINE</span>
           <span className="text-gray-900">V1.0.4-STABLE</span>
         </div>

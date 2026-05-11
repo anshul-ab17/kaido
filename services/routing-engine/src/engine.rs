@@ -1,7 +1,7 @@
 use crate::models::{RouteRequest, RouteResult, RouteStep};
 use std::time::Instant;
 
-// Realistic devnet price references (updated via Pyth in Phase 3)
+// Realistic devnet price references (updated via Pyth)
 fn token_price_usd(token: &str) -> f64 {
     let base = token
         .to_uppercase()

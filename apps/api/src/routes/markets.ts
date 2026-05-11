@@ -97,20 +97,31 @@ export const marketRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.send({ market: request.params.symbol, asks: book.asks, bids: book.bids, timestamp: Date.now() });
       } catch { /* fall through to Pyth synthesis */ }
 
-      // Synthesise from Pyth price — always available
+      // Deterministic book from Pyth mid (no RNG) when Birdeye fails
       const prices  = await fastify.sdk.pyth.getPrices().catch(() => ({} as Record<string, number>));
       const perpKey = `${cfg.baseToken}-PERP`;
       const mid     = prices[perpKey] ?? prices[cfg.symbol] ?? 1;
       const step    = mid * 0.00015;
       const LEVELS  = 14;
+      const sym     = request.params.symbol;
 
-      const makeLevel = (p: number, i: number) => {
-        const size  = parseFloat((Math.random() * 150 + 5).toFixed(2));
-        return { price: parseFloat((p + (i + 1) * step).toFixed(4)), size, total: 0 };
+      const levelSize = (side: 'ask' | 'bid', i: number) => {
+        let h = 0;
+        const seed = `${sym}:${cfg.birdeyeMint}:${side}:${i}`;
+        for (let j = 0; j < seed.length; j++) h = (h * 31 + seed.charCodeAt(j)) >>> 0;
+        return +((5 + (h % 10_000) / 100).toFixed(2));
       };
 
-      const asks = Array.from({ length: LEVELS }, (_, i) => makeLevel(mid, i));
-      const bids = Array.from({ length: LEVELS }, (_, i) => ({ price: parseFloat((mid - (i + 1) * step).toFixed(4)), size: parseFloat((Math.random() * 150 + 5).toFixed(2)), total: 0 }));
+      const asks = Array.from({ length: LEVELS }, (_, i) => ({
+        price: parseFloat((mid + (i + 1) * step).toFixed(4)),
+        size:  levelSize('ask', i),
+        total: 0,
+      }));
+      const bids = Array.from({ length: LEVELS }, (_, i) => ({
+        price: parseFloat((mid - (i + 1) * step).toFixed(4)),
+        size:  levelSize('bid', i),
+        total: 0,
+      }));
 
       let t = 0;
       for (const a of asks) { t += a.size; a.total = +t.toFixed(2); }

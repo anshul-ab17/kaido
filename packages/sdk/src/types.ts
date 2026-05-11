@@ -58,10 +58,14 @@ export interface JupiterQuote {
   inAmount:       string;
 }
 
+export type SolanaCluster = 'mainnet-beta' | 'devnet';
+
 // SDK config
 export interface LogPoseConfig {
-  heliusApiKey?:  string;
-  birdeyeApiKey?: string;
-  rpcUrl?:        string;
-  natsUrl?:       string;
+  cluster?:          SolanaCluster;
+  heliusApiKey?:     string;
+  birdeyeApiKey?:    string;
+  rpcUrl?:           string;
+  natsUrl?:          string;
+  jupiterApiKey?:    string;
 }

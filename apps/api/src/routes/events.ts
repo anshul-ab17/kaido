@@ -1,379 +1,316 @@
 import type { FastifyPluginAsync } from 'fastify';
-import type { PredictionEvent } from '@repo/types';
 
-// ── LMSR (kept for Kaido-native events created via POST /events) ─────────────
+// ── LMSR math ────────────────────────────────────────────────────────────────
 
 const LMSR_B = 1000;
 
-interface LMSRState { qYes: number; qNo: number }
-
-function lmsrPrices(s: LMSRState): { yes: number; no: number } {
-  const eY = Math.exp(s.qYes / LMSR_B);
-  const eN = Math.exp(s.qNo  / LMSR_B);
+function lmsrPrices(qYes: number, qNo: number): { yes: number; no: number } {
+  const eY = Math.exp(qYes / LMSR_B);
+  const eN = Math.exp(qNo  / LMSR_B);
   const sum = eY + eN;
   return { yes: eY / sum, no: eN / sum };
 }
 
-function lmsrBuy(s: LMSRState, side: 'yes' | 'no', amount: number): { shares: number; newState: LMSRState } {
-  const C = (qY: number, qN: number) => LMSR_B * Math.log(Math.exp(qY / LMSR_B) + Math.exp(qN / LMSR_B));
-  const before = C(s.qYes, s.qNo);
+function lmsrCost(qYes: number, qNo: number): number {
+  return LMSR_B * Math.log(Math.exp(qYes / LMSR_B) + Math.exp(qNo / LMSR_B));
+}
+
+function lmsrBuy(
+  qYes: number, qNo: number, side: 'yes' | 'no', amount: number,
+): { shares: number; newQYes: number; newQNo: number } {
+  const before = lmsrCost(qYes, qNo);
   let lo = 0, hi = amount * 10;
   for (let i = 0; i < 64; i++) {
-    const mid = (lo + hi) / 2;
-    const after = C(side === 'yes' ? s.qYes + mid : s.qYes, side === 'no' ? s.qNo + mid : s.qNo);
+    const mid   = (lo + hi) / 2;
+    const after = lmsrCost(
+      side === 'yes' ? qYes + mid : qYes,
+      side === 'no'  ? qNo  + mid : qNo,
+    );
     if (after - before < amount) lo = mid; else hi = mid;
   }
   const shares = (lo + hi) / 2;
-  return { shares, newState: { qYes: side === 'yes' ? s.qYes + shares : s.qYes, qNo: side === 'no' ? s.qNo + shares : s.qNo } };
-}
-
-function initLMSR(yesPrice: number): LMSRState {
-  const eY = yesPrice / (1 - yesPrice);
-  return { qYes: LMSR_B * Math.log(eY), qNo: 0 };
-}
-
-interface EventActivity { id: string; wallet: string; side: 'yes' | 'no'; amount: number; shares: number; price: number; timestamp: number }
-interface UserPosition { yesShares: number; noShares: number; yesCost: number; noCost: number }
-interface LiveEvent { data: PredictionEvent; lmsr: LMSRState; activity: EventActivity[]; positions: Map<string, UserPosition> }
-
-const EVENTS = new Map<string, LiveEvent>();
-
-function seedEvent(e: PredictionEvent) {
-  EVENTS.set(e.id, { data: e, lmsr: initLMSR(e.yesPrice), activity: [], positions: new Map() });
-}
-
-// ── Polymarket types ──────────────────────────────────────────────────────────
-
-interface PolyMarket {
-  id:             string;
-  question?:      string;
-  outcomePrices?: string;
-  volume?:        number;
-  liquidity?:     number;
-  endDate?:       string;
-  active?:        boolean;
-}
-
-interface PolyEvent {
-  id:         string;
-  title:      string;
-  slug?:      string;
-  category?:  string;
-  endDate?:   string;
-  volume?:    number;
-  liquidity?: number;
-  markets?:   PolyMarket[];
-  tags?:      Array<{ label?: string; slug?: string }>;
-}
-
-// ── Kalshi types ──────────────────────────────────────────────────────────────
-
-interface KalshiMarket {
-  ticker:          string;
-  title?:          string;
-  yes_bid?:        number;
-  yes_ask?:        number;
-  last_price?:     number;
-  volume?:         number;
-  open_interest?:  number;
-  close_time?:     string;
-}
-
-interface KalshiEvent {
-  event_ticker: string;
-  title:        string;
-  category?:    string;
-  sub_title?:   string;
-  markets?:     KalshiMarket[];
-}
-
-interface KalshiEventsResponse {
-  events:      KalshiEvent[];
-  cursor?:     string;
+  return {
+    shares,
+    newQYes: side === 'yes' ? qYes + shares : qYes,
+    newQNo:  side === 'no'  ? qNo  + shares : qNo,
+  };
 }
 
 // ── Subtopic / Topic shapes returned to frontend ──────────────────────────────
 
 export interface EventSubtopic {
-  id:             string;
-  question:       string;
-  yesPrice:       number;
-  noPrice:        number;
-  volume:         number;
-  endDate:        string;
-  source:         'polymarket' | 'kalshi';
-  url?:           string;
+  id:            string;
+  question:      string;
+  yesPrice:      number;
+  noPrice:       number;
+  volume:        number;
+  endDate:       string;
+  source:        'polymarket';
+  url?:          string;
+  conditionId?:  string;
+  yesTokenId?:   string;
 }
 
 export interface EventTopic {
-  id:             string;
-  title:          string;
-  category:       string;
-  source:         'polymarket' | 'kalshi';
-  volume:         number;
-  liquidity:      number;
-  endDate:        string;
-  subtopics:      EventSubtopic[];
-}
-
-// ── Fetchers ──────────────────────────────────────────────────────────────────
-
-async function fetchPolyTopics(limit: number): Promise<EventTopic[]> {
-  try {
-    const res = await fetch(
-      `https://gamma-api.polymarket.com/events?active=true&closed=false&limit=${limit}&order=volume&ascending=false`,
-      { signal: AbortSignal.timeout(8000) },
-    );
-    if (!res.ok) return [];
-    const data = (await res.json()) as PolyEvent[];
-
-    return data
-      .filter((e) => e.title && e.markets && e.markets.length > 0)
-      .map((e): EventTopic => {
-        const subtopics: EventSubtopic[] = (e.markets ?? []).map((m): EventSubtopic => {
-          let yesPrice = 0.5;
-          try {
-            const prices = JSON.parse(m.outcomePrices ?? '[]') as number[];
-            if (prices[0] !== undefined) yesPrice = Math.max(0.01, Math.min(0.99, Number(prices[0])));
-          } catch { /* ignore */ }
-          return {
-            id:        `poly_mkt_${m.id}`,
-            question:  m.question ?? e.title,
-            yesPrice:  +yesPrice.toFixed(4),
-            noPrice:   +(1 - yesPrice).toFixed(4),
-            volume:    m.volume ?? 0,
-            endDate:   m.endDate ?? e.endDate ?? '',
-            source:    'polymarket',
-            url:       `https://polymarket.com/event/${e.slug ?? e.id}`,
-          };
-        });
-
-        return {
-          id:        `poly_${e.id}`,
-          title:     e.title,
-          category:  e.category ?? (e.tags?.[0]?.label ?? 'Other'),
-          source:    'polymarket',
-          volume:    e.volume ?? 0,
-          liquidity: e.liquidity ?? 0,
-          endDate:   e.endDate ?? '',
-          subtopics,
-        };
-      });
-  } catch {
-    return [];
-  }
-}
-
-async function fetchKalshiTopics(limit: number): Promise<EventTopic[]> {
-  try {
-    const res = await fetch(
-      `https://trading-api.kalshi.com/trade-api/v2/events?limit=${limit}&status=open`,
-      {
-        headers: { 'Accept': 'application/json' },
-        signal: AbortSignal.timeout(8000),
-      },
-    );
-    if (!res.ok) return [];
-    const data = (await res.json()) as KalshiEventsResponse;
-
-    return (data.events ?? [])
-      .filter((e) => e.title)
-      .map((e): EventTopic => {
-        const subtopics: EventSubtopic[] = (e.markets ?? []).map((m): EventSubtopic => {
-          const yesBid   = (m.yes_bid   ?? 0) / 100;
-          const yesAsk   = (m.yes_ask   ?? 0) / 100;
-          const lastPrice = (m.last_price ?? 50) / 100;
-          const yesPrice = yesBid > 0 && yesAsk > 0 ? (yesBid + yesAsk) / 2 : lastPrice;
-          return {
-            id:       `kalshi_${m.ticker}`,
-            question:  m.title ?? e.title,
-            yesPrice: +Math.max(0.01, Math.min(0.99, yesPrice)).toFixed(4),
-            noPrice:  +(1 - Math.max(0.01, Math.min(0.99, yesPrice))).toFixed(4),
-            volume:    m.volume ?? 0,
-            endDate:   m.close_time ?? '',
-            source:    'kalshi',
-            url:       `https://kalshi.com/markets/${m.ticker}`,
-          };
-        });
-
-        // If no markets array, create a single subtopic from the event itself
-        if (subtopics.length === 0) {
-          subtopics.push({
-            id:       `kalshi_${e.event_ticker}`,
-            question:  e.sub_title ?? e.title,
-            yesPrice:  0.5,
-            noPrice:   0.5,
-            volume:    0,
-            endDate:   '',
-            source:    'kalshi',
-            url:       `https://kalshi.com/markets/${e.event_ticker}`,
-          });
-        }
-
-        const totalVolume = subtopics.reduce((s, m) => s + m.volume, 0);
-        const latestEnd   = subtopics.reduce((latest, m) => m.endDate > latest ? m.endDate : latest, '');
-
-        return {
-          id:        `kalshi_${e.event_ticker}`,
-          title:     e.title,
-          category:  e.category ?? 'Other',
-          source:    'kalshi',
-          volume:    totalVolume,
-          liquidity: 0,
-          endDate:   latestEnd,
-          subtopics,
-        };
-      });
-  } catch {
-    return [];
-  }
+  id:        string;
+  title:     string;
+  category:  string;
+  source:    'polymarket';
+  volume:    number;
+  liquidity: number;
+  endDate:   string;
+  subtopics: EventSubtopic[];
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 export const eventRoutes: FastifyPluginAsync = async (fastify) => {
 
-  // GET /events/topics — live feed from Polymarket + Kalshi, grouped as topics with subtopics
-  fastify.get<{ Querystring: { source?: string; limit?: string; category?: string } }>(
+  // GET /events/topics — Polymarket (Gamma API)
+  fastify.get<{ Querystring: { limit?: string; category?: string; q?: string } }>(
     '/events/topics',
     async (request, reply) => {
-      const source   = request.query.source   ?? 'all';
       const limit    = Math.min(parseInt(request.query.limit ?? '50', 10), 100);
       const category = request.query.category;
+      const q        = request.query.q?.trim();
 
-      const [polyTopics, kalshiTopics] = await Promise.all([
-        source !== 'kalshi' ? fetchPolyTopics(limit)   : Promise.resolve([]),
-        source !== 'poly'   ? fetchKalshiTopics(limit) : Promise.resolve([]),
-      ]);
-
-      let topics = [...polyTopics, ...kalshiTopics];
+      let topics: EventTopic[] = [];
+      try {
+        const raw = q
+          ? await fastify.sdk.polymarket.searchEventTopics(q, limit)
+          : await fastify.sdk.polymarket.getEventTopics(limit);
+        topics = raw as EventTopic[];
+      } catch {
+        topics = [];
+      }
 
       if (category && category !== 'All') {
         topics = topics.filter((t) => t.category === category);
       }
 
-      // Collect all unique categories across both sources
       const categories = ['All', ...new Set(topics.map((t) => t.category))].sort();
 
       return reply.send({ topics, categories, updatedAt: new Date().toISOString() });
     },
   );
 
-  // GET /events — legacy: return Kaido-native in-memory events only
+  // GET /events/positions/all?wallet=xxx — must be before /events/:id
+  fastify.get<{ Querystring: { wallet?: string } }>(
+    '/events/positions/all',
+    async (request, reply) => {
+      const wallet    = request.query.wallet ?? 'anon';
+      const positions = await fastify.prisma.eventPosition.findMany({
+        where:   { wallet },
+        include: { event: true },
+      });
+      const result = positions.map((pos) => {
+        const p = lmsrPrices(pos.event.qYes, pos.event.qNo);
+        return {
+          eventId:        pos.eventId,
+          title:          pos.event.title,
+          category:       pos.event.category,
+          resolutionDate: Number(pos.event.resolutionDate),
+          yesShares:      pos.yesShares,
+          noShares:       pos.noShares,
+          yesCost:        pos.yesCost,
+          noCost:         pos.noCost,
+          yesPrice:       p.yes,
+          noPrice:        p.no,
+          yesValue:       +(pos.yesShares * p.yes).toFixed(4),
+          noValue:        +(pos.noShares  * p.no).toFixed(4),
+        };
+      });
+      return reply.send({ positions: result });
+    },
+  );
+
+  // GET /events — all Kaido-native events from DB
   fastify.get('/events', async (_req, reply) => {
-    const events = [...EVENTS.values()].map((e) => {
-      const prices = lmsrPrices(e.lmsr);
-      return { ...e.data, yesPrice: +prices.yes.toFixed(4), noPrice: +prices.no.toFixed(4) };
+    const rows   = await fastify.prisma.event.findMany({ orderBy: { createdAt: 'desc' } });
+    const events = rows.map((e) => {
+      const p = lmsrPrices(e.qYes, e.qNo);
+      return { ...e, resolutionDate: Number(e.resolutionDate), yesPrice: +p.yes.toFixed(4), noPrice: +p.no.toFixed(4) };
     });
     return reply.send({ events });
   });
 
+  // ── Polymarket proxies (Gamma / Data / CLOB) — must be before /events/:id so `poly` is not captured as :id
+
+  fastify.get<{ Querystring: { token_id?: string } }>(
+    '/events/poly/midpoint',
+    async (request, reply) => {
+      const tokenId = request.query.token_id;
+      if (!tokenId) return reply.code(400).send({ error: 'token_id required' });
+      const mid = await fastify.sdk.polymarket.getMidpoint(tokenId);
+      if (mid === null) return reply.code(502).send({ error: 'Midpoint unavailable' });
+      return reply.send({ token_id: tokenId, mid });
+    },
+  );
+
+  fastify.get<{ Querystring: { token_id?: string } }>(
+    '/events/poly/book',
+    async (request, reply) => {
+      const tokenId = request.query.token_id;
+      if (!tokenId) return reply.code(400).send({ error: 'token_id required' });
+      const book = await fastify.sdk.polymarket.getBook(tokenId);
+      if (!book) return reply.code(502).send({ error: 'Order book unavailable' });
+      return reply.send(book);
+    },
+  );
+
+  fastify.get<{ Querystring: { token_id?: string } }>(
+    '/events/poly/spread',
+    async (request, reply) => {
+      const tokenId = request.query.token_id;
+      if (!tokenId) return reply.code(400).send({ error: 'token_id required' });
+      const spread = await fastify.sdk.polymarket.getSpread(tokenId);
+      if (!spread) return reply.code(502).send({ error: 'Spread unavailable' });
+      return reply.send({ token_id: tokenId, ...spread });
+    },
+  );
+
+  fastify.get<{ Querystring: { limit?: string; market?: string } }>(
+    '/events/poly/trades',
+    async (request, reply) => {
+      const limit  = Math.min(parseInt(request.query.limit ?? '50', 10), 200);
+      const market = request.query.market;
+      const trades = await fastify.sdk.polymarket.getTrades({
+        limit,
+        ...(market ? { market } : {}),
+      });
+      return reply.send(trades);
+    },
+  );
+
+  fastify.get<{ Querystring: { limit?: string; market?: string } }>(
+    '/events/poly/activity',
+    async (request, reply) => {
+      const limit  = Math.min(parseInt(request.query.limit ?? '50', 10), 200);
+      const market = request.query.market;
+      const activity = await fastify.sdk.polymarket.getActivity({
+        limit,
+        ...(market ? { market } : {}),
+      });
+      return reply.send(activity);
+    },
+  );
+
   // GET /events/:id
   fastify.get<{ Params: { id: string } }>('/events/:id', async (request, reply) => {
-    const live = EVENTS.get(request.params.id);
-    if (!live) return reply.code(404).send({ error: 'Event not found' });
-    const prices = lmsrPrices(live.lmsr);
-    return reply.send({ event: { ...live.data, yesPrice: +prices.yes.toFixed(4), noPrice: +prices.no.toFixed(4) } });
+    const e = await fastify.prisma.event.findUnique({ where: { id: request.params.id } });
+    if (!e) return reply.code(404).send({ error: 'Event not found' });
+    const p = lmsrPrices(e.qYes, e.qNo);
+    return reply.send({
+      event: { ...e, resolutionDate: Number(e.resolutionDate), yesPrice: +p.yes.toFixed(4), noPrice: +p.no.toFixed(4) },
+    });
   });
 
   // GET /events/:id/activity
   fastify.get<{ Params: { id: string }; Querystring: { limit?: string } }>(
     '/events/:id/activity',
     async (request, reply) => {
-      const live = EVENTS.get(request.params.id);
-      if (!live) return reply.code(404).send({ error: 'Event not found' });
-      const limit = Math.min(parseInt(request.query.limit ?? '20', 10), 50);
-      return reply.send({ activity: live.activity.slice(-limit).reverse() });
-    },
-  );
-
-  // GET /events/positions/all?wallet=xxx
-  fastify.get<{ Querystring: { wallet?: string } }>(
-    '/events/positions/all',
-    async (request, reply) => {
-      const wallet = request.query.wallet ?? 'anon';
-      const result = [];
-      for (const [id, live] of EVENTS.entries()) {
-        const pos = live.positions.get(wallet);
-        if (!pos || (pos.yesShares === 0 && pos.noShares === 0)) continue;
-        const prices = lmsrPrices(live.lmsr);
-        result.push({
-          eventId: id, title: live.data.title, category: live.data.category,
-          resolutionDate: live.data.resolutionDate,
-          yesShares: pos.yesShares, noShares: pos.noShares,
-          yesCost: pos.yesCost, noCost: pos.noCost,
-          yesPrice: prices.yes, noPrice: prices.no,
-          yesValue: +(pos.yesShares * prices.yes).toFixed(4),
-          noValue:  +(pos.noShares  * prices.no).toFixed(4),
-        });
-      }
-      return reply.send({ positions: result });
-    },
-  );
-
-  // POST /events/:id/bet — Kaido-native LMSR bet
-  fastify.post<{ Params: { id: string }; Body: { side: 'yes' | 'no'; amount: number; wallet?: string } }>(
-    '/events/:id/bet',
-    async (request, reply) => {
-      const live = EVENTS.get(request.params.id);
-      if (!live) return reply.code(404).send({ error: 'Event not found' });
-      const { side, amount, wallet = 'anon' } = request.body;
-      if (!amount || amount <= 0) return reply.code(400).send({ error: 'Invalid amount' });
-      if (amount > 10_000) return reply.code(400).send({ error: 'Max bet: 10,000 USDC' });
-
-      const before = lmsrPrices(live.lmsr);
-      const { shares, newState } = lmsrBuy(live.lmsr, side, amount);
-      live.lmsr = newState;
-      const after = lmsrPrices(live.lmsr);
-      live.data.volume   += amount;
-      live.data.liquidity += amount * 0.1;
-
-      const pos = live.positions.get(wallet) ?? { yesShares: 0, noShares: 0, yesCost: 0, noCost: 0 };
-      if (side === 'yes') { pos.yesShares += shares; pos.yesCost += amount; }
-      else               { pos.noShares  += shares; pos.noCost  += amount; }
-      live.positions.set(wallet, pos);
-
-      const act: EventActivity = {
-        id: `act-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
-        wallet: wallet.slice(0, 4) + '…' + wallet.slice(-4),
-        side, amount, shares: +shares.toFixed(4),
-        price: +(side === 'yes' ? before.yes : before.no).toFixed(4),
-        timestamp: Date.now(),
-      };
-      live.activity.push(act);
-      if (live.activity.length > 200) live.activity.shift();
-
-      return reply.send({
-        success: true, eventId: live.data.id, side, amount,
-        shares: +shares.toFixed(4),
-        priceBefore: +before[side].toFixed(4),
-        priceAfter:  +after[side].toFixed(4),
-        potentialPayout: +shares.toFixed(4),
-        yesPrice: +after.yes.toFixed(4),
-        noPrice:  +after.no.toFixed(4),
+      const limit    = Math.min(parseInt(request.query.limit ?? '20', 10), 50);
+      const activity = await fastify.prisma.eventActivity.findMany({
+        where:   { eventId: request.params.id },
+        orderBy: { createdAt: 'desc' },
+        take:    limit,
       });
+      return reply.send({ activity });
     },
   );
 
-  // POST /events — create Kaido-native prediction market
-  fastify.post<{ Body: { title: string; description: string; category: string; resolutionDate: number; initialYesPrice?: number } }>(
-    '/events',
-    async (request, reply) => {
-      const { title, description, category, resolutionDate, initialYesPrice = 0.5 } = request.body;
-      if (!title || !description || !category || !resolutionDate) {
-        return reply.code(400).send({ error: 'Missing required fields' });
-      }
-      if (initialYesPrice <= 0 || initialYesPrice >= 1) {
-        return reply.code(400).send({ error: 'initialYesPrice must be between 0 and 1 exclusive' });
-      }
-      const id = `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
-      const newEvent: PredictionEvent = {
-        id, title, description, category, status: 'open', resolutionDate,
-        yesPrice: initialYesPrice, noPrice: +(1 - initialYesPrice).toFixed(4),
-        volume: 0, liquidity: 1000, createdAt: Date.now(),
-      };
-      seedEvent(newEvent);
-      return reply.code(201).send({ event: newEvent });
-    },
-  );
+  // POST /events/:id/bet — DB-persisted LMSR bet
+  fastify.post<{
+    Params: { id: string };
+    Body:   { side: 'yes' | 'no'; amount: number; wallet?: string };
+  }>('/events/:id/bet', async (request, reply) => {
+    const { side, amount, wallet = 'anon' } = request.body;
+    if (!amount || amount <= 0) return reply.code(400).send({ error: 'Invalid amount' });
+    if (amount > 10_000) return reply.code(400).send({ error: 'Max bet: 10,000 USDC' });
+
+    const result = await fastify.prisma.$transaction(async (tx) => {
+      const event = await tx.event.findUnique({ where: { id: request.params.id } });
+      if (!event) throw Object.assign(new Error('Event not found'), { statusCode: 404 });
+
+      const before = lmsrPrices(event.qYes, event.qNo);
+      const { shares, newQYes, newQNo } = lmsrBuy(event.qYes, event.qNo, side, amount);
+      const after  = lmsrPrices(newQYes, newQNo);
+
+      await tx.event.update({
+        where: { id: event.id },
+        data:  { qYes: newQYes, qNo: newQNo, volume: event.volume + amount, liquidity: event.liquidity + amount * 0.1 },
+      });
+
+      await tx.eventPosition.upsert({
+        where:  { eventId_wallet: { eventId: event.id, wallet } },
+        create: {
+          eventId:   event.id, wallet,
+          yesShares: side === 'yes' ? shares : 0,
+          noShares:  side === 'no'  ? shares : 0,
+          yesCost:   side === 'yes' ? amount : 0,
+          noCost:    side === 'no'  ? amount : 0,
+        },
+        update: side === 'yes'
+          ? { yesShares: { increment: shares }, yesCost: { increment: amount } }
+          : { noShares:  { increment: shares }, noCost:  { increment: amount } },
+      });
+
+      await tx.eventActivity.create({
+        data: {
+          eventId: event.id,
+          wallet:  wallet.length > 8 ? wallet.slice(0, 4) + '…' + wallet.slice(-4) : wallet,
+          side, amount,
+          shares:  +shares.toFixed(4),
+          price:   +(side === 'yes' ? before.yes : before.no).toFixed(4),
+        },
+      });
+
+      return { shares, before, after };
+    });
+
+    return reply.send({
+      success:         true,
+      eventId:         request.params.id,
+      side, amount,
+      shares:          +result.shares.toFixed(4),
+      priceBefore:     +result.before[side].toFixed(4),
+      priceAfter:      +result.after[side].toFixed(4),
+      potentialPayout: +result.shares.toFixed(4),
+      yesPrice:        +result.after.yes.toFixed(4),
+      noPrice:         +result.after.no.toFixed(4),
+    });
+  });
+
+  // POST /events — create new prediction market (persisted to DB)
+  fastify.post<{
+    Body: { title: string; description: string; category: string; resolutionDate: number; initialYesPrice?: number };
+  }>('/events', async (request, reply) => {
+    const { title, description, category, resolutionDate, initialYesPrice = 0.5 } = request.body;
+    if (!title || !description || !category || !resolutionDate) {
+      return reply.code(400).send({ error: 'title, description, category, resolutionDate required' });
+    }
+    if (initialYesPrice <= 0 || initialYesPrice >= 1) {
+      return reply.code(400).send({ error: 'initialYesPrice must be between 0 and 1 exclusive' });
+    }
+
+    const eY   = initialYesPrice / (1 - initialYesPrice);
+    const qYes = LMSR_B * Math.log(eY);
+
+    const event = await fastify.prisma.event.create({
+      data: {
+        id:             `evt-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        title, description, category,
+        status:         'open',
+        resolutionDate: BigInt(resolutionDate),
+        qYes, qNo: 0,
+        volume:         0,
+        liquidity:      1000,
+      },
+    });
+
+    const p = lmsrPrices(event.qYes, event.qNo);
+    return reply.code(201).send({
+      event: { ...event, resolutionDate: Number(event.resolutionDate), yesPrice: +p.yes.toFixed(4), noPrice: +p.no.toFixed(4) },
+    });
+  });
 };

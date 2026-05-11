@@ -15,6 +15,7 @@ import { portfolioRoutes } from './routes/portfolio.js';
 import { eventRoutes } from './routes/events.js';
 import { insightRoutes } from './routes/insights.js';
 import { aiRoutes } from './routes/ai.js';
+import { predictionRoutes } from './routes/prediction.js';
 import { prisma } from '@repo/db';
 import { createLogPoseSDK, type LogPoseSDK } from '@repo/sdk';
 
@@ -69,8 +70,11 @@ await app.register(wsPlugin);
 app.decorate('prisma', prisma);
 
 const sdk = createLogPoseSDK({
-  heliusApiKey:  config.HELIUS_API_KEY,
-  birdeyeApiKey: config.BIRDEYE_API_KEY,
+  cluster: config.SOLANA_CLUSTER,
+  ...(config.SOLANA_RPC_URL   ? { rpcUrl:         config.SOLANA_RPC_URL   } : {}),
+  ...(config.HELIUS_API_KEY   ? { heliusApiKey:   config.HELIUS_API_KEY   } : {}),
+  ...(config.BIRDEYE_API_KEY  ? { birdeyeApiKey:  config.BIRDEYE_API_KEY  } : {}),
+  ...(config.JUPITER_API_KEY  ? { jupiterApiKey:  config.JUPITER_API_KEY  } : {}),
 });
 app.decorate('sdk', sdk);
 
@@ -87,6 +91,7 @@ await app.register(portfolioRoutes);
 await app.register(eventRoutes);
 await app.register(insightRoutes);
 await app.register(aiRoutes);
+await app.register(predictionRoutes);
 
 // AI chat has its own limit to control Anthropic API costs
 app.addHook('onRequest', async (request, reply) => {

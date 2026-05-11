@@ -1,6 +1,7 @@
 'use client';
 
 import { Component, useEffect, useState } from 'react';
+// Market Header component and sub-components for the trading terminal
 import { ChevronDown } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useKaidoStore } from '../store';
@@ -26,7 +27,7 @@ function TabTitleUpdater() {
   return null;
 }
 
-function MarketSelector() {
+export function MarketSelector() {
   const activeMarket    = useKaidoStore((s) => s.activeMarket);
   const setActiveMarket = useKaidoStore((s) => s.setActiveMarket);
   const [open, setOpen] = useState(false);
@@ -35,14 +36,14 @@ function MarketSelector() {
     <div className="relative shrink-0">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-2 py-1.5 hover:bg-white/[0.04] rounded-xl transition-all border border-transparent hover:border-white/[0.07] active:scale-95"
+        className="flex items-center gap-2 px-2 py-1.5 hover:bg-primary/5 rounded-xl transition-all border border-transparent hover:border-primary/20 active:scale-95 group"
       >
         <CoinIcon symbol={activeMarket} size={26} />
         <div className="flex flex-col items-start">
-          <span className="font-black text-[14px] tracking-tight text-white leading-none">{activeMarket}</span>
+          <span className="font-black text-[14px] tracking-tight text-white group-hover:text-primary leading-none transition-colors">{activeMarket}</span>
           <span className="text-[9px] text-gray-600 leading-none mt-0.5">Perpetual</span>
         </div>
-        <ChevronDown className={cn('w-3.5 h-3.5 text-gray-600 transition-transform duration-200', open && 'rotate-180')} />
+        <ChevronDown className={cn('w-3.5 h-3.5 text-gray-600 group-hover:text-primary transition-all duration-200', open && 'rotate-180')} />
       </button>
 
       {open && (
@@ -57,7 +58,7 @@ function MarketSelector() {
                   'w-full flex items-center gap-2.5 px-3 py-2 text-[12px] font-bold transition-all rounded-xl',
                   activeMarket === m
                     ? 'bg-primary/15 text-primary border border-primary/20'
-                    : 'text-gray-400 hover:text-white hover:bg-white/[0.05]',
+                    : 'text-gray-400 hover:text-primary hover:bg-primary/5',
                 )}
               >
                 <CoinIcon symbol={m} size={22} />
@@ -71,25 +72,26 @@ function MarketSelector() {
   );
 }
 
-function LiveStats() {
+export function LiveStats() {
   const tickers      = useKaidoStore((s) => s.tickers);
   const activeMarket = useKaidoStore((s) => s.activeMarket);
   const price        = tickers[activeMarket]?.price ?? 145.20;
   const change       = 2.45;
 
   const stats = [
-    { label: 'Price',        value: `$${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, cls: 'text-white font-black text-[13px]' },
+    { label: 'Mark Price',   value: `$${price.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, cls: 'text-primary font-black text-[13px]' },
+    { label: 'Oracle',       value: `$${(price + 0.01).toFixed(2)}`, cls: 'text-white/80 font-medium' },
     { label: '24h Change',   value: `+${change.toFixed(2)}%`,  cls: 'text-success font-bold' },
-    { label: 'Index',        value: `$${(price - 0.02).toFixed(2)}`, cls: 'text-gray-500 font-medium' },
-    { label: '24h Volume',   value: '$2.4B',                   cls: 'text-gray-500 font-medium' },
-    { label: 'Funding / 1h', value: '+0.0100%',                cls: 'text-success font-medium' },
+    { label: '24h Volume',   value: '$2,481,209,341',          cls: 'text-white font-medium' },
+    { label: 'Open Interest', value: '$844.8M',                cls: 'text-white font-medium' },
+    { label: 'Funding / 1h', value: '0.0013%',                 cls: 'text-primary font-bold' },
   ];
 
   return (
-    <div className="flex items-center gap-6 px-2">
+    <div className="flex items-center gap-8 px-2">
       {stats.map((s) => (
         <div key={s.label} className="flex flex-col shrink-0">
-          <span className="text-[9px] text-gray-700 font-bold uppercase tracking-[0.1em] leading-none mb-1">{s.label}</span>
+          <span className="text-[9px] text-gray-700 font-bold uppercase tracking-[0.1em] leading-none mb-1.5">{s.label}</span>
           <span className={cn('text-[11px] font-mono leading-none tracking-tight', s.cls)}>{s.value}</span>
         </div>
       ))}
@@ -97,10 +99,10 @@ function LiveStats() {
   );
 }
 
-function WsStatusDot() {
+export function WsStatusDot() {
   const wsStatus = useKaidoStore((s) => s.wsStatus);
   return (
-    <div className="ml-auto flex items-center gap-2 px-4 shrink-0 border-l border-white/[0.04]">
+    <div className="flex items-center gap-2 shrink-0">
       <div className={cn(
         'w-1.5 h-1.5 rounded-full',
         wsStatus === 'connected'  ? 'bg-success animate-pulse' :
@@ -122,11 +124,16 @@ export class MarketHeader extends Component {
     return (
       <>
         <TabTitleUpdater />
-        <div className="h-14 flex items-center gap-2 px-4 border-b border-white/[0.04] bg-[#0E0F00]/80 backdrop-blur-md shrink-0 overflow-x-auto scrollbar-hide">
-          <MarketSelector />
-          <div className="w-px h-6 bg-white/[0.06] mx-1 shrink-0" />
-          <LiveStats />
-          <WsStatusDot />
+        <div className="h-12 flex items-center gap-2 px-6 border-b border-white/[0.04] bg-[#070800] shrink-0 overflow-x-auto scrollbar-hide">
+          <div className="flex items-center h-full">
+            <MarketSelector />
+          </div>
+          
+          <div className="w-px h-5 bg-white/[0.06] mx-2 shrink-0" />
+          
+          <div className="flex items-center h-full">
+            <LiveStats />
+          </div>
         </div>
       </>
     );

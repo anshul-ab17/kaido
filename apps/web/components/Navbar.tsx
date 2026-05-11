@@ -113,17 +113,19 @@ class NavbarInner extends Component<NavbarInnerProps> {
 
         {/* Right — Portfolio + Pulse + Wallet */}
         <div className="flex items-center gap-6">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
+            <WsStatusDot />
             <Link
               href="/portfolio"
               className={cn(
-                'text-[13px] font-bold transition-all duration-150',
-                pathname.startsWith('/portfolio') ? 'text-primary' : 'text-gray-500 hover:text-primary'
+                'h-8 px-4 flex items-center justify-center text-[12px] font-black tracking-tight transition-all active:scale-95 rounded-sm',
+                pathname.startsWith('/portfolio') 
+                  ? 'bg-primary text-black' 
+                  : 'bg-primary/10 text-primary hover:bg-primary hover:text-black border border-primary/20'
               )}
             >
-              Portfolio
+              PORTFOLIO
             </Link>
-            <WsStatusDot />
           </div>
           
           <button

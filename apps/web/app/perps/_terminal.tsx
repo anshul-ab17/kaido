@@ -53,22 +53,22 @@ export function TradingTerminal({ defaultSide = 'long', pair = 'SOL' }: Terminal
     <div className="h-screen flex flex-col bg-background text-white overflow-hidden">
       <MarketSyncer pair={pair} />
       <Navbar />
-      <MarketHeader />
-
       <div className="flex flex-1 overflow-hidden min-h-0">
-        {/* Left: Chart + Positions */}
-        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-          <TradingChart />
-          <PositionsPanel />
+        {/* Left Area: Market Header + Trading View */}
+        <div className="flex-1 flex flex-col min-w-0 border-r border-primary/[0.08]">
+          <MarketHeader />
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <TradingChart />
+            <PositionsPanel />
+          </div>
         </div>
 
-        {/* Center: Orderbook */}
-        <div className="w-[200px] xl:w-[220px] shrink-0 border-l border-primary/[0.10] overflow-hidden flex flex-col">
+        {/* Right Area: Orderbook + Trade (Full height from market-info level) */}
+        <div className="hidden xl:flex w-[200px] xl:w-[220px] shrink-0 border-r border-primary/[0.08] overflow-hidden flex-col">
           <Orderbook />
         </div>
 
-        {/* Right: Trade form */}
-        <div className="w-[270px] xl:w-[290px] shrink-0 border-l border-primary/[0.10] overflow-y-auto scrollbar-hide">
+        <div className="hidden lg:block w-[270px] xl:w-[290px] shrink-0 overflow-y-auto scrollbar-hide">
           <TradeModule defaultSide={defaultSide} />
         </div>
       </div>

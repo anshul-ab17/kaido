@@ -71,11 +71,14 @@ export const tradeRoutes: FastifyPluginAsync = async (fastify) => {
       const { signature, market, walletAddress, size = 0, price = 0, side = 'long' } = request.body;
       if (!signature) return reply.code(400).send({ error: 'signature required' });
 
+      let onChainOk = false;
       try {
-        const slot = await fastify.sdk.solana.getSlot();
-        if (!slot) throw new Error('RPC unreachable');
+        onChainOk = await fastify.sdk.solana.isTransactionConfirmed(signature);
       } catch {
         return reply.code(503).send({ error: 'Cannot verify transaction: Solana RPC unreachable' });
+      }
+      if (!onChainOk) {
+        return reply.code(400).send({ error: 'Transaction not found or not confirmed on-chain' });
       }
 
       const identity = await fastify.prisma.authIdentity.findFirst({

@@ -165,8 +165,8 @@ class InsightsPage extends Component<Record<string, never>, InsightsState> {
             </tr>
           </thead>
           <tbody>
-            {pools.map((p) => (
-              <tr key={p.name} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
+            {pools.map((p, i) => (
+              <tr key={`${p.name}-${p.venue}-${i}`} className="border-b border-white/[0.04] hover:bg-white/[0.02] transition-colors">
                 <td className="py-3 px-4">
                   <div className="flex items-center gap-2">
                     <div className="flex items-center">
