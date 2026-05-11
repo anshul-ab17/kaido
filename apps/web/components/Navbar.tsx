@@ -100,7 +100,7 @@ class NavbarInner extends Component<NavbarInnerProps> {
         {/* Left — logo + nav links */}
         <div className="flex items-center gap-8 h-full">
           <Link href="/" className="flex items-center cursor-pointer group shrink-0 h-full">
-            <svg viewBox="0 0 100 100" className="w-8 h-8 fill-primary drop-shadow-[0_0_10px_rgba(188,235,2,0.60)] transition-transform duration-300 group-hover:scale-110">
+            <svg viewBox="0 0 100 100" className="w-6 h-6 fill-primary drop-shadow-[0_0_10px_rgba(188,235,2,0.60)] transition-transform duration-300 group-hover:scale-110">
               <path d="M40,2 Q69,36 69,73 L40,73 Z" />
               <path d="M3,98 L97,73 L85,98 Z" />
             </svg>

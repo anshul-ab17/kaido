@@ -64,7 +64,7 @@ export function TradingTerminal({ defaultSide = 'long', pair = 'SOL' }: Terminal
         </div>
 
         {/* Right Area: Orderbook + Trade (Full height from market-info level) */}
-        <div className="hidden xl:flex w-[200px] xl:w-[220px] shrink-0 border-r border-primary/[0.08] overflow-hidden flex-col">
+        <div className="hidden xl:flex w-[280px] xl:w-[320px] shrink-0 border-r border-primary/[0.08] overflow-hidden flex-col">
           <Orderbook />
         </div>
 

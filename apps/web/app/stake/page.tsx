@@ -198,7 +198,7 @@ class StakePage extends Component<StakePageProps, StakeState> {
                         onClick={() => this.setState({ tab: t })}
                         className={cn(
                           'flex-1 py-1.5 rounded-md text-xs font-medium transition-all capitalize',
-                          tab === t ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-300'
+                          tab === t ? 'bg-primary text-black' : 'text-gray-500 hover:text-gray-300'
                         )}
                       >
                         {t}
@@ -246,7 +246,7 @@ class StakePage extends Component<StakePageProps, StakeState> {
 
                   <button
                     onClick={this.handleAction}
-                    className="w-full py-2.5 rounded-xl bg-primary text-white text-sm font-semibold hover:brightness-110 active:scale-95 transition-all"
+                    className="w-full py-2.5 rounded-xl bg-primary text-black text-sm font-semibold hover:brightness-110 active:scale-95 transition-all"
                   >
                     {walletConnected ? (tab === 'stake' ? 'Stake Now' : 'Unstake') : 'Connect Wallet'}
                   </button>

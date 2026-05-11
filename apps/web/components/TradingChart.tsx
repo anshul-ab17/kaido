@@ -465,7 +465,7 @@ class TradingChartInner extends Component<InnerProps, InnerState> {
             >
               Indicators
               {activeIndCount > 0 && (
-                <span className="w-3.5 h-3.5 rounded-full bg-primary text-white text-[8px] font-black flex items-center justify-center">
+                <span className="w-3.5 h-3.5 rounded-full bg-primary text-black text-[8px] font-black flex items-center justify-center">
                   {activeIndCount}
                 </span>
               )}

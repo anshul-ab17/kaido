@@ -56,7 +56,7 @@ class OrderbookInner extends Component<InnerProps, InnerState> {
       : null;
 
     const SkeletonRow = ({ side }: { side: 'ask' | 'bid' }) => (
-      <div className="grid grid-cols-3 px-3 py-[3px] animate-pulse">
+      <div className="grid grid-cols-3 px-6 py-[3px] animate-pulse">
         <div className={cn('h-2 rounded w-12', side === 'ask' ? 'bg-error/10' : 'bg-success/10')} />
         <div className="h-2 bg-white/[0.04] rounded w-10 ml-auto" />
         <div className="h-2 bg-white/[0.03] rounded w-8 ml-auto" />
@@ -67,7 +67,7 @@ class OrderbookInner extends Component<InnerProps, InnerState> {
       <div className="flex flex-col h-full overflow-hidden">
 
         {/* Header */}
-        <div className="flex items-center justify-between px-3 h-9 border-b border-white/[0.04] shrink-0">
+        <div className="flex items-center justify-between px-6 h-9 border-b border-white/[0.04] shrink-0">
           <span className="text-[10px] font-black text-gray-500 uppercase tracking-[0.12em]">Order Book</span>
           <div className="flex items-center gap-1.5">
             <CoinIcon symbol={this.props.symbol} size={16} />
@@ -78,7 +78,7 @@ class OrderbookInner extends Component<InnerProps, InnerState> {
         <div className="flex flex-col flex-1 overflow-hidden font-mono text-[11px]">
 
           {/* Column headers */}
-          <div className="grid grid-cols-3 px-3 py-1.5 text-[9px] font-bold text-gray-700 uppercase tracking-[0.08em] shrink-0">
+          <div className="grid grid-cols-3 px-6 py-1.5 text-[9px] font-bold text-gray-700 uppercase tracking-[0.08em] shrink-0">
             <span>Price</span>
             <span className="text-right">Size</span>
             <span className="text-right">Total</span>
@@ -91,7 +91,7 @@ class OrderbookInner extends Component<InnerProps, InnerState> {
               : [...asks].reverse().map((ask, i) => (
                   <div
                     key={i}
-                    className="grid grid-cols-3 px-3 py-[3px] relative cursor-pointer hover:bg-white/[0.025] transition-colors"
+                    className="grid grid-cols-3 px-6 py-[3px] relative cursor-pointer hover:bg-white/[0.025] transition-colors"
                   >
                     <div
                       className="absolute inset-y-0 right-0 bg-error/[0.08] pointer-events-none"
@@ -105,7 +105,7 @@ class OrderbookInner extends Component<InnerProps, InnerState> {
           </div>
 
           {/* Mid price / spread */}
-          <div className="px-3 py-2 flex items-center justify-between border-y border-white/[0.05] bg-white/[0.015] shrink-0">
+          <div className="px-6 py-2 flex items-center justify-between border-y border-white/[0.05] bg-white/[0.015] shrink-0">
             <div className="flex items-center gap-2">
               <span className="text-[13px] font-black text-white tracking-tighter">
                 ${bookMid > 0 ? bookMid.toFixed(2) : '—'}
@@ -127,7 +127,7 @@ class OrderbookInner extends Component<InnerProps, InnerState> {
               : bids.map((bid, i) => (
                   <div
                     key={i}
-                    className="grid grid-cols-3 px-3 py-[3px] relative cursor-pointer hover:bg-white/[0.025] transition-colors"
+                    className="grid grid-cols-3 px-6 py-[3px] relative cursor-pointer hover:bg-white/[0.025] transition-colors"
                   >
                     <div
                       className="absolute inset-y-0 right-0 bg-success/[0.08] pointer-events-none"

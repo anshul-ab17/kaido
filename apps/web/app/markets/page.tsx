@@ -56,7 +56,7 @@ class MarketsView extends Component<Record<string, never>, MarketsState> {
               onClick={() => this.setState({ filter: f })}
               className={cn(
                 'px-3 py-1.5 rounded-lg text-xs font-semibold transition-all capitalize',
-                filter === f ? 'bg-primary text-white glow-crimson' : 'glass text-gray-400 hover:text-white'
+                filter === f ? 'bg-primary text-black glow-crimson' : 'glass text-gray-400 hover:text-white'
               )}
             >
               {f}

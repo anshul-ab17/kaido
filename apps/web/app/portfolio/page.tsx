@@ -260,7 +260,7 @@ class DepositModal extends Component<DepositModalProps, DepositModalState> {
                 <button
                   key={t}
                   onClick={() => this.setState({ tab: t, result: null, amount: '' })}
-                  className={cn('px-4 py-1.5 text-xs font-bold rounded-md capitalize transition-all', tab === t ? 'bg-primary text-white' : 'text-gray-500 hover:text-gray-300')}
+                  className={cn('px-4 py-1.5 text-xs font-bold rounded-md capitalize transition-all', tab === t ? 'bg-primary text-black' : 'text-gray-500 hover:text-gray-300')}
                 >
                   {t}
                 </button>
@@ -336,7 +336,7 @@ class DepositModal extends Component<DepositModalProps, DepositModalState> {
                 <button
                   onClick={this.handleSubmit}
                   disabled={!amount || loading}
-                  className="w-full py-3 bg-primary text-white rounded-xl text-sm font-bold hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-primary text-black rounded-xl text-sm font-bold hover:brightness-110 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                   {loading
                     ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -378,7 +378,7 @@ class DepositModal extends Component<DepositModalProps, DepositModalState> {
                 </div>
                 <p className="text-xs text-gray-500">Complete payment securely via Dodo Payments. Funds arrive as USDC after confirmation.</p>
                 <a href={result.checkoutUrl} target="_blank" rel="noopener noreferrer"
-                  className="w-full py-3 bg-primary text-white rounded-xl text-sm font-bold hover:brightness-110 transition-all flex items-center justify-center gap-2">
+                  className="w-full py-3 bg-primary text-black rounded-xl text-sm font-bold hover:brightness-110 transition-all flex items-center justify-center gap-2">
                   <ExternalLink className="w-4 h-4" /> Open Dodo Checkout
                 </a>
                 <button onClick={() => this.setState({ result: null })} className="w-full py-2 text-xs text-gray-500 hover:text-white transition-colors font-semibold">
@@ -1037,7 +1037,7 @@ class PortfolioView extends Component<PortfolioViewProps, PortfolioViewState> {
             <button
               type="button"
               onClick={() => onOpenWallet()}
-              className="px-6 py-2.5 bg-primary text-white rounded-xl text-sm font-semibold hover:brightness-110 transition-all"
+              className="px-6 py-2.5 bg-primary text-black rounded-xl text-sm font-semibold hover:brightness-110 transition-all"
             >
               Connect Wallet
             </button>
@@ -1067,7 +1067,7 @@ class PortfolioView extends Component<PortfolioViewProps, PortfolioViewState> {
           <div className="flex gap-2">
             <button
               onClick={() => this.setState({ showDeposit: true, depositInitialTab: 'deposit' })}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-xs font-semibold hover:brightness-110 transition-all"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-black rounded-xl text-xs font-semibold hover:brightness-110 transition-all"
             >
               <Download className="w-3.5 h-3.5" /> Deposit
             </button>
